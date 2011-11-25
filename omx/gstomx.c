@@ -25,7 +25,7 @@
 #include "gstomx_mpeg2dec.h"
 #include "gstomx_h263dec.h"
 #include "gstomx_h264dec.h"
-#include "gstomx_vp6dec.h"
+// #include "gstomx_vp6dec.h"
 #include "gstomx_wmvdec.h"
 #include "gstomx_mpeg4enc.h"
 #include "gstomx_h264enc.h"

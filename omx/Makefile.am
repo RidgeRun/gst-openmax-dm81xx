@@ -15,7 +15,7 @@ libgstomx_la_SOURCES = gstomx.c gstomx.h \
 		       gstomx_mpeg2dec.c gstomx_mpeg2dec.h \
 		       gstomx_h263dec.c gstomx_h263dec.h \
 		       gstomx_h264dec.c gstomx_h264dec.h \
-                       gstomx_vc1dec.c gstomx_vc1dec.h \
+               gstomx_vc1dec.c gstomx_vc1dec.h \
 		       gstomx_wmvdec.c gstomx_wmvdec.h \
 		       gstomx_mpeg4enc.c gstomx_mpeg4enc.h \
 		       gstomx_h264enc.c gstomx_h264enc.h \
@@ -54,7 +54,7 @@ libgstomx_la_SOURCES = gstomx.c gstomx.h \
 	       gstomx_videomixer.c gstomx_videomixer.h 
 
 libgstomx_la_LIBADD = $(OMXCORE_LIBS) $(GST_LIBS) $(GST_BASE_LIBS) -lgstvideo-0.10 $(top_builddir)/util/libutil.la
-libgstomx_la_CFLAGS = $(OMXCORE_CFLAGS) $(OMXTIAUDIODEC_CFLAGS) $(USE_OMXTIAUDIODEC) $(GST_CFLAGS) $(GST_BASE_CFLAGS) -I$(top_srcdir)/util \
+libgstomx_la_CFLAGS = -DUSE_OMXTICORE $(OMXCORE_CFLAGS) $(OMXTIAUDIODEC_CFLAGS) $(USE_OMXTIAUDIODEC) $(GST_CFLAGS) $(GST_BASE_CFLAGS) -I$(top_srcdir)/util \
 	-Dxdc_target_name__=GCArmv5T -Dxdc_target_types__=gnu/targets/arm/std.h -Dxdc__RESTRICT__ \
     	-I$(OMX_INSTALL_DIR)/include/openMaxv11 \
     	-I$(OMX_INSTALL_DIR)/packages \

@@ -1,8 +1,7 @@
 AC_PREREQ([2.52])
 
 dnl AC_INIT([gst-openmax], m4_esyscmd([build-aux/git-version-gen]),
-AC_INIT([gst-openmax],
-        [http://bugzilla.gnome.org/enter_bug.cgi?product=GStreamer&component=gst-openmax])
+AC_INIT([gst-openmax], [0.3], [https://gstreamer.ti.com/gf/project/gstreamer_ti/forum/])
 
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([-Wall -Wno-portability])

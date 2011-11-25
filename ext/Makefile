@@ -30,3 +30,9 @@ clean:
 	rm -rf lib
 
 install: all
+
+distdir: 
+	mkdir -p $(distdir)
+	cp -f Makefile $(distdir)
+
+distclean:
