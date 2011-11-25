@@ -1,0 +1,88 @@
+This is a read-me file for GStreamer patches
+-------------------------------------------------
+
+
+(C) Copyright 2011 - RidgeRun Engineering
+
+<http://ridgerun.com/>
+
+/***************/
+
+Contents
+1. Summary
+2. gstreamer-0.10.32 package
+3. gst-plugins-base-0.10.32 package
+4. gst-plugins-bad-0.10.21 package
+5. If something goes wrong
+
+
+1. Summary
+========================================
+  
+  These are the release notes for the GStreamer packages patches. It is 
+  necessary to compile and install RidgeRun gst-openmax package adequately. 
+  Read them carefully. Remember apply patches in the correct 
+  order shown below.
+
+
+2. gstreamer-0.10.32 package
+========================================
+  
+  Patches:
+  
+  - 0001_add_GstQueryBuffers_query.patch
+	Upstream query from video sink to get minimum number to request, for
+	given caps, the minimum number of buffers.
+
+	
+  - 0002_gstevent_add_crop_event.patch
+	Downstream serialized event to pass cropping information to display 
+	and encoders.
+
+		No solution yet for VC-1 range mapping or VP6 mirroring
+		No solution yet for non-destructive text/graphic overlays
+		Won’t work properly if video-sink does not handle the crop event
+	
+
+  - 0004_add_support_to_replace_PadTemplates.patch
+	This patch solves problems with just run gst-inspect.  It is caused 
+	by the plugin implemented in gstomx_vc1dec.c, because it tries to add 
+	a pad template called src, however, this plugin already inherits a pad 
+	called src from its parent class in gstomx_base_videodec.c. This patch 
+	modifies it, if a subclass tries to add a pad template that already 
+	exists, it will just replace the old one with the new pad template added 
+	by the subclass, in this case vc1dec.
+		  
+
+3. gst-plugins-base-0.10.32 package
+========================================
+
+  Patches:
+  
+  - 0003_rowstride.patch
+	To avoid memcpys, all YUV buffers are strided. To realize the performance 
+	benefits of TILER 2D buffers, YUV buffers require 4KiB rowstride.
+
+	
+4. gst-plugins-bad-0.10.21 package
+========================================
+  
+  Patches:
+  
+  - 0005_correct_postion_to_get_info_from_sps.patch
+	The current version of h264parse creates a wrong codecdata parameter 
+	since it doesn't use the correct index to extract information 
+	like profile_idc, profile_compability and level_idc from the sequence 
+	parameter set (SPS) created by the H264 encoder, causing problems to 
+	identify (in the decoder side) the profile that was used to encode the 
+	stream, as result the decoder won't be able to decode the stream properly. 
+	In this patch we have solved the issue and now the decode is able to 
+	identify the profile that was used to encode the original stream. 
+
+
+5. If something goes wrong
+========================================
+  
+  Write us at:
+				inquires@ridgerun.com
+

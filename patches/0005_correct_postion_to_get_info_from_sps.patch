@@ -1,0 +1,17 @@
+Index: gst-plugins-bad-0.10.21/src/gst/h264parse/gsth264parse.c
+===================================================================
+--- gst-plugins-bad-0.10.21.orig/src/gst/h264parse/gsth264parse.c	2011-11-24 13:44:52.044663202 -0600
++++ gst-plugins-bad-0.10.21/src/gst/h264parse/gsth264parse.c	2011-11-24 13:45:09.172476779 -0600
+@@ -1130,9 +1130,9 @@
+       sps_size += GST_BUFFER_SIZE (nal) - 4 + 2;
+       if (GST_BUFFER_SIZE (nal) >= 7) {
+         found = TRUE;
+-        profile_idc = (GST_BUFFER_DATA (nal))[4];
+-        profile_comp = (GST_BUFFER_DATA (nal))[5];
+-        level_idc = (GST_BUFFER_DATA (nal))[6];
++        profile_idc = (GST_BUFFER_DATA (nal))[5];
++        profile_comp = (GST_BUFFER_DATA (nal))[6];
++        level_idc = (GST_BUFFER_DATA (nal))[7];
+       }
+     }
+   }
