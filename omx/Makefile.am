@@ -38,6 +38,7 @@ libgstomx_la_SOURCES = gstomx.c gstomx.h \
 		       gstomx_ilbcdec.c gstomx_ilbcdec.h \
 		       gstomx_ilbcenc.c gstomx_ilbcenc.h \
 		       gstomx_jpegenc.c gstomx_jpegenc.h \
+		       gstomx_camera.c  gstomx_camera.h \
 		       gstomx_jpegdec.c gstomx_jpegdec.h \
 		       gstomx_base_sink.c gstomx_base_sink.h \
 		       gstomx_audiosink.c gstomx_audiosink.h \
