@@ -109,8 +109,12 @@ Contents
   This section shows and explain differences between RidgeRun's gst-openmax 
   package and TI's gst-openmax package.
  
-  - Modify configuration files to build, compile and install gst-openmax 
-  with RidgeRun SDK.
+  - Modifying build system, new build system is based in the use of a shared 
+  library called libOmx.
+  
+  - Adding support for omx_camera
+  
+  - Adding support for omx_tvp
  
 
 8. If something goes wrong
