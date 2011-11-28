@@ -1,6 +1,9 @@
 /*
  * Copyright (C) 2007-2009 Nokia Corporation.
  *
+ * Modified by: David Soto <david.soto@ridgerun.com>
+ * Copyright (C) 2011 RidgeRun
+
  * Author: Felipe Contreras <felipe.contreras@nokia.com>
  *
  * This library is free software; you can redistribute it and/or
@@ -104,19 +107,17 @@ initialize_port (GstOmxBaseFilter *omx_base)
     paramPort.format.video.nFrameHeight = height;
     paramPort.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
     paramPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
-	paramPort.format.video.xFramerate = (60) << 16;
 
     GST_DEBUG_OBJECT (self, "nFrameWidth = %ld, nFrameHeight = %ld, nBufferCountActual = %ld",
       paramPort.format.video.nFrameWidth, paramPort.format.video.nFrameHeight, 
       paramPort.nBufferCountActual);
 
+    if(self->framerate_denom)
+       paramPort.format.video.xFramerate = (self->framerate_num/self->framerate_denom) << 16;
+
     GST_DEBUG_OBJECT (self, "G_OMX_PORT_SET_DEFINITION (output)");
     G_OMX_PORT_SET_DEFINITION (omx_base->out_port, &paramPort);
 
-	G_OMX_PORT_GET_DEFINITION (omx_base->in_port, &paramPort);
-    //paramPort.nBufferCountActual = 8;
-    paramPort.format.video.xFramerate = (60) << 16;
-    G_OMX_PORT_SET_DEFINITION (omx_base->in_port, &paramPort);
 #if 0
     port = g_omx_core_get_port (gomx, "input", 0);
 

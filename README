@@ -112,9 +112,11 @@ Contents
   - Modifying build system, new build system is based in the use of a shared 
   library called libOmx.
   
-  - Adding support for omx_camera
+  - Adding support for omx_camera.
   
-  - Adding support for omx_tvp
+  - Adding support for omx_tvp.
+  
+  - Adding support for decoder, 60fps by default.
  
 
 8. If something goes wrong
