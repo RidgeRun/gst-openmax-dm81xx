@@ -46,6 +46,9 @@ dnl ** checks **
 dnl Check for GLib
 PKG_CHECK_MODULES([GTHREAD], [gthread-2.0])
 
+dnl Check for libOMX_Core
+PKG_CHECK_MODULES([OMXCORE], [libOMX_Core])
+
 dnl Check for GStreamer
 AG_GST_CHECK_GST($GST_MAJORMINOR, [$GST_REQUIRED])
 AG_GST_CHECK_GST_BASE($GST_MAJORMINOR, [$GST_REQUIRED])
