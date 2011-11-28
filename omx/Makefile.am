@@ -15,7 +15,7 @@ libgstomx_la_SOURCES = gstomx.c gstomx.h \
 		       gstomx_mpeg2dec.c gstomx_mpeg2dec.h \
 		       gstomx_h263dec.c gstomx_h263dec.h \
 		       gstomx_h264dec.c gstomx_h264dec.h \
-               gstomx_vc1dec.c gstomx_vc1dec.h \
+		       gstomx_vc1dec.c gstomx_vc1dec.h \
 		       gstomx_wmvdec.c gstomx_wmvdec.h \
 		       gstomx_mpeg4enc.c gstomx_mpeg4enc.h \
 		       gstomx_h264enc.c gstomx_h264enc.h \
@@ -39,20 +39,21 @@ libgstomx_la_SOURCES = gstomx.c gstomx.h \
 		       gstomx_ilbcenc.c gstomx_ilbcenc.h \
 		       gstomx_jpegenc.c gstomx_jpegenc.h \
 		       gstomx_camera.c  gstomx_camera.h \
+		       gstomx_tvp.c  gstomx_tvp.h \
 		       gstomx_jpegdec.c gstomx_jpegdec.h \
 		       gstomx_base_sink.c gstomx_base_sink.h \
 		       gstomx_audiosink.c gstomx_audiosink.h \
 		       gstomx_videosink.c gstomx_videosink.h \
 		       gstomx_base_src.c gstomx_base_src.h \
 		       gstomx_filereadersrc.c gstomx_filereadersrc.h \
-               swcsc.c swcsc.h \
-               gstperf.c gstperf.h  \
-               gstomx_buffertransport.c gstomx_buffertransport.h \
-               gstomx_base_vfpc.c gstomx_base_vfpc.h \
-               gstomx_base_ctrl.c gstomx_base_ctrl.h \
-               gstomx_scaler.c gstomx_scaler.h   \
-               gstomx_noisefilter.c gstomx_noisefilter.h  \
-	       gstomx_videomixer.c gstomx_videomixer.h 
+		       swcsc.c swcsc.h \
+		       gstperf.c gstperf.h  \
+		       gstomx_buffertransport.c gstomx_buffertransport.h \
+		       gstomx_base_vfpc.c gstomx_base_vfpc.h \
+		       gstomx_base_ctrl.c gstomx_base_ctrl.h \
+		       gstomx_scaler.c gstomx_scaler.h   \
+		       gstomx_noisefilter.c gstomx_noisefilter.h  \
+		       gstomx_videomixer.c gstomx_videomixer.h
 
 libgstomx_la_LIBADD = $(OMXCORE_LIBS) $(GST_LIBS) $(GST_BASE_LIBS) -lgstvideo-0.10 $(top_builddir)/util/libutil.la
 libgstomx_la_CFLAGS = $(OMXCORE_CFLAGS) -DUSE_OMXTICORE $(OMXTIAUDIODEC_CFLAGS) $(USE_OMXTIAUDIODEC) $(GST_CFLAGS) $(GST_BASE_CFLAGS) -I$(top_srcdir)/util
