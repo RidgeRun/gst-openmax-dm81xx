@@ -40,13 +40,13 @@
 #include <OMX_CoreExt.h>
 #include <OMX_IndexExt.h>
 
+#define MAX_SHIFTS	30
 /**
  * SECTION:element-omx_camera
  *
  * omx_camerasrc can be used to capture video and/or still frames from OMX
  * camera.<p>
  */
-
 static const GstElementDetails element_details =
 GST_ELEMENT_DETAILS ("Video OMX Camera Source",
     "Source/Video",
@@ -61,6 +61,7 @@ enum
   ARG_INPUT_INTERFACE,
   ARG_CAP_MODE,
   ARG_SCAN_TYPE,
+  ARG_SKIP_FRAMES,
 };
 
 GSTOMX_BOILERPLATE (GstOmxCamera, gst_omx_camera, GstOmxBaseSrc,
@@ -178,6 +179,7 @@ src_setcaps (GstPad * pad, GstCaps * caps)
     sHwPortParam.eScanType = self->scan_type;
 
     structure = gst_caps_get_structure (caps, 0);
+
     if (!strcmp (gst_structure_get_name (structure), "video/x-raw-yuv")) {
       self->input_format = OMX_COLOR_FormatYCbYCr;
     } else if (!strcmp (gst_structure_get_name (structure), "video/x-raw-rgb")) {
@@ -190,7 +192,7 @@ src_setcaps (GstPad * pad, GstCaps * caps)
         (OMX_INDEXTYPE) OMX_TI_IndexParamVFCCHwPortProperties,
         (OMX_PTR) & sHwPortParam);
 
-    if (!gst_pad_set_caps (GST_BASE_SRC_PAD(self), caps))
+    if (!gst_pad_set_caps (GST_BASE_SRC_PAD (self), caps))
       return FALSE;
   }
   return TRUE;
@@ -346,6 +348,38 @@ set_property (GObject * obj,
       }
       break;
     }
+    case ARG_SKIP_FRAMES:
+    {
+      OMX_CONFIG_VFCC_FRAMESKIP_INFO sCapSkipFrames;
+      _G_OMX_INIT_PARAM (&sCapSkipFrames);
+      guint32 shifts = 0, skip = 0, i = 0, count = 0;
+      shifts = g_value_get_uint (value);
+      if (shifts) {
+        while (count < MAX_SHIFTS) {
+
+          if ((count + shifts) > MAX_SHIFTS) {
+            shifts = MAX_SHIFTS - count;
+          }
+          for (i = 0; i < shifts; i++) {
+            skip = skip << 1;
+            skip = skip | 1;
+            count++;
+          }
+          if (count < MAX_SHIFTS) {
+            skip = skip << 1;
+            count++;
+          }
+        }
+      }
+	  /*OMX_TI_IndexConfigVFCCFrameSkip is for dropping frames in capture,
+	    it is a binary 30bit value where 1 means drop a frame and 0
+		process the frame
+	    */
+      sCapSkipFrames.frameSkipMask = skip;
+      G_OMX_PORT_SET_CONFIG (self->port,
+          OMX_TI_IndexConfigVFCCFrameSkip, &sCapSkipFrames);
+      break;
+    }
 
     default:
     {
@@ -383,6 +417,16 @@ get_property (GObject * obj, guint prop_id, GValue * value, GParamSpec * pspec)
         g_value_set_string (value, "progressive");
       else
         g_value_set_string (value, "interlaced");
+      break;
+    }
+    case ARG_SKIP_FRAMES:
+    {
+      OMX_CONFIG_VFCC_FRAMESKIP_INFO sCapSkipFrames;
+
+      G_OMX_PORT_GET_CONFIG (self->port,
+          OMX_TI_IndexConfigVFCCFrameSkip, &sCapSkipFrames);
+
+      g_value_set_uint (value, sCapSkipFrames.frameSkipMask);
       break;
     }
 
@@ -454,6 +498,11 @@ type_class_init (gpointer g_class, gpointer class_data)
           "\n\t\t\t progressive "
           "\n\t\t\t interlaced ", "progressive", G_PARAM_READWRITE));
 
+  g_object_class_install_property (gobject_class, ARG_SKIP_FRAMES,
+      g_param_spec_uint ("skip-frames", "skip frames",
+          "Skip this amount of frames after a vaild frame",
+          0, 30, 0, G_PARAM_READWRITE));
+
 }
 
 static void
@@ -477,7 +526,7 @@ type_instance_init (GTypeInstance * instance, gpointer g_class)
   gst_base_src_set_live (basesrc, TRUE);
 
   /* setup src pad (already created by basesrc): */
-  gst_pad_set_setcaps_function (GST_BASE_SRC_PAD(basesrc),
+  gst_pad_set_setcaps_function (GST_BASE_SRC_PAD (basesrc),
       GST_DEBUG_FUNCPTR (src_setcaps));
 
   /*Initialize properties */
