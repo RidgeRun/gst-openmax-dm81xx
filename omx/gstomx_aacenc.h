@@ -42,6 +42,7 @@ struct GstOmxAacEnc
     gint output_format;
     gint rate;
     gint channels;
+    gboolean inport_configured;
 };
 
 struct GstOmxAacEncClass

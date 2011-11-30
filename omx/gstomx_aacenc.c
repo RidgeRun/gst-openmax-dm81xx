@@ -33,7 +33,7 @@ enum
     ARG_OUTPUT_FORMAT,
 };
 
-#define DEFAULT_BITRATE 64000 /* Guarantee that all the 3 formats will work using this default. */
+#define DEFAULT_BITRATE 128000 /* Guarantee that all the 3 formats will work using this default. */
 #define MAX_BITRATE 256000 /* Maximum value supported by the component */
 #define DEFAULT_PROFILE OMX_AUDIO_AACObjectLC
 #define DEFAULT_OUTPUT_FORMAT OMX_AUDIO_AACStreamFormatRAW
@@ -41,6 +41,12 @@ enum
 #define DEFAULT_CHANNELS 2
 #define IN_BUFFER_SIZE 1024*8			/* 1024*8 Recommended buffer size */
 #define OUT_BUFFER_SIZE 1024*8		 	/* 1024*8 Recommended buffer size */
+#define OMX_AUDENC_INPUT_PORT 0
+#define OMX_AUDENC_OUTPUT_PORT 1
+#define NUM_OF_IN_BUFFERS 1
+#define NUM_OF_OUT_BUFFERS 1
+#define NUM_OF_PORTS 2
+#define START_PORT_NUM 0
 
 GSTOMX_BOILERPLATE (GstOmxAacEnc, gst_omx_aacenc, GstOmxBaseFilter, GST_OMX_BASE_FILTER_TYPE);
 
@@ -99,6 +105,48 @@ gst_omx_aacenc_output_format_get_type (void)
     return gst_omx_aacenc_output_format_type;
 }
 
+static void
+settings_changed_cb (GOmxCore *core)
+{
+
+    GstOmxBaseFilter *omx_base;
+    guint rate;
+    guint channels;
+    guint profile;
+
+    omx_base = core->object;
+    GST_DEBUG_OBJECT (omx_base, "settings changed");
+
+    {
+        OMX_AUDIO_PARAM_AACPROFILETYPE param;
+        _G_OMX_INIT_PARAM(&param);
+        G_OMX_PORT_GET_PARAM (omx_base->out_port, OMX_IndexParamAudioAac, &param);
+        rate = param.nSampleRate;
+        channels = param.nChannels;
+        profile  = param.eAACProfile;
+
+        if (rate == 0)
+        {
+            /** @todo: this shouldn't happen. */
+            GST_WARNING_OBJECT (omx_base, "Bad samplerate");
+            rate = DEFAULT_RATE;
+            channels = DEFAULT_CHANNELS;
+        }
+    }
+
+    {
+        GstCaps *new_caps = NULL;
+        new_caps = gst_caps_new_simple ("audio/mpeg",
+                                        "mpegversion", G_TYPE_INT, profile,
+                                        "rate", G_TYPE_INT, rate,
+                                        "channels", G_TYPE_INT, channels,
+                                         NULL);
+
+        GST_INFO_OBJECT (omx_base, "caps are: %" GST_PTR_FORMAT, new_caps);
+        gst_pad_set_caps (omx_base->srcpad, new_caps);
+    }
+
+}
 
 static GstCaps *
 generate_src_template (void)
@@ -307,49 +355,238 @@ sink_setcaps (GstPad *pad,
 
     gst_structure_get_int (structure, "rate", &self->rate);
     gst_structure_get_int (structure, "channels", &self->channels);
+    
+    { 
+        /* set pcm port */
+        OMX_AUDIO_PARAM_PCMMODETYPE param;
+        G_OMX_PORT_GET_PARAM (omx_base->in_port, OMX_IndexParamAudioPcm, &param);
+
+        param.nSamplingRate = self->rate;
+        param.nChannels = self->channels;
+  
+        G_OMX_PORT_SET_PARAM(omx_base->in_port, OMX_IndexParamAudioPcm, &param);
+   
+    }
+    self->inport_configured = TRUE;
+
 
     {
-        GstCaps *src_caps;
+        GstCaps *sink_caps;
 
-        src_caps = gst_caps_new_simple ("audio/mpeg",
+        sink_caps = gst_caps_new_simple ("audio/x-raw-int",
                                         "mpegversion", G_TYPE_INT, 4,
                                         "rate", G_TYPE_INT, self->rate,
                                         "channels", G_TYPE_INT, self->channels,
                                         NULL);
-        GST_INFO_OBJECT (omx_base, "src caps are: %" GST_PTR_FORMAT, src_caps);
+        GST_INFO_OBJECT (omx_base, "src caps are: %" GST_PTR_FORMAT, sink_caps);
 
-        gst_pad_set_caps (omx_base->srcpad, src_caps);
+        
+        omx_base->in_port->caps = gst_caps_copy (sink_caps);
 
-        gst_caps_unref (src_caps);
+        gst_caps_unref (sink_caps);
     }
 
     return gst_pad_set_caps (pad, caps);
 }
 
+static GstCaps *
+sink_getcaps (GstPad *pad)
+{
+    
+    GstCaps *caps = NULL;
+    GstStructure *structure = NULL;
+    GstOmxBaseFilter *omx_base;
+    
+    GstOmxAacEnc* self;
+
+
+    omx_base = GST_OMX_BASE_FILTER (GST_PAD_PARENT (pad));
+    
+    self = GST_OMX_AACENC (omx_base);
+    if (omx_base->gomx->omx_state > OMX_StateLoaded)
+    {
+        /* currently, we cannot change caps once out of loaded..  later this
+         * could possibly be supported by enabling/disabling the port..
+         */
+        GST_DEBUG_OBJECT (self, "cannot getcaps in %d state", omx_base->gomx->omx_state);
+        return GST_PAD_CAPS (pad);
+    }
+    if (self->inport_configured)
+    {
+        OMX_AUDIO_PARAM_PCMMODETYPE param;
+       
+        G_OMX_PORT_GET_PARAM (omx_base->in_port, OMX_IndexParamAudioPcm, &param);
+        caps = gst_caps_new_empty ();
+    
+        GstStructure *struc = ("audio/x-raw-int",
+                                "endianness", G_TYPE_INT, G_BYTE_ORDER,
+                                "width", G_TYPE_INT, 16,
+                                "depth", G_TYPE_INT, 16,
+                                "rate", G_TYPE_INT, param.nSamplingRate,
+                                "signed", G_TYPE_BOOLEAN, TRUE,
+                                "channels", G_TYPE_INT, param.nChannels,
+                                 NULL);
+        gst_caps_append_structure (caps, structure);
+    }
+    else
+    {
+        GstPadTemplate *template;
+        template = gst_pad_template_new ("sink", GST_PAD_SINK,
+                                         GST_PAD_ALWAYS,
+                                         generate_sink_template ());
+        /* we don't have valid width/height/etc yet, so just use the template.. */
+        caps = gst_pad_template_get_caps(template);
+        
+        GST_DEBUG_OBJECT (self, "caps=%"GST_PTR_FORMAT, caps);
+    }
+     
+    return caps;
+     
+}
+
+static gboolean
+src_setcaps (GstPad *pad,
+              GstCaps *caps)
+{
+   
+    GstStructure *structure;
+    GstOmxBaseFilter *omx_base;
+    
+    GstOmxAacEnc* self;
+    
+
+    omx_base = GST_OMX_BASE_FILTER (GST_PAD_PARENT (pad));
+    
+    self = GST_OMX_AACENC (omx_base);
+
+    GST_INFO_OBJECT (omx_base, "setcaps (sink): %" GST_PTR_FORMAT, caps);
+
+    structure = gst_caps_get_structure (caps, 0);
+
+    gst_structure_get_int (structure, "rate", &self->rate);
+    gst_structure_get_int (structure, "channels", &self->channels);
+    gst_structure_get_int (structure, "mpegversion", &self->profile);
+
+    { 
+        /* set aac profile type port */
+        OMX_AUDIO_PARAM_AACPROFILETYPE param;
+
+        G_OMX_PORT_GET_PARAM (omx_base->out_port, OMX_IndexParamAudioAac, &param);
+
+        param.nSampleRate = self->rate;
+        param.nChannels = self->channels;
+        param.eAACProfile = self->profile;
+  
+        G_OMX_PORT_SET_PARAM(omx_base->out_port, OMX_IndexParamAudioAac, &param);
+   
+    }
+
+    omx_base->in_port->caps = gst_caps_copy (caps);
+
+
+
+    return gst_pad_set_caps (pad, caps);
+   
+}
+
+static GstCaps *
+src_getcaps (GstPad *pad)
+{
+   
+    GstCaps *caps = NULL;
+    GstStructure *structure = NULL;
+    GstOmxBaseFilter *omx_base;
+    GstOmxAacEnc* self;
+
+
+    omx_base = GST_OMX_BASE_FILTER (GST_PAD_PARENT (pad));
+    self = GST_OMX_AACENC (omx_base);
+
+    if (omx_base->gomx->omx_state > OMX_StateLoaded)
+    {
+        /* currently, we cannot change caps once out of loaded..  later this
+         * could possibly be supported by enabling/disabling the port..
+         */
+        GST_DEBUG_OBJECT (self, "cannot getcaps in %d state", omx_base->gomx->omx_state);
+        return GST_PAD_CAPS (pad);
+    }
+    if (self->inport_configured)
+    {
+
+    	OMX_AUDIO_PARAM_AACPROFILETYPE param;
+    	G_OMX_PORT_GET_PARAM (omx_base->out_port, OMX_IndexParamAudioAac, &param);
+        caps = gst_caps_new_empty ();
+    
+        GstStructure *struc = gst_structure_new ("audio/mpeg",
+                               "mpegversion", G_TYPE_INT, &self->profile,
+                               "rate", G_TYPE_INT,self->rate,
+                               "channels", G_TYPE_INT, self->channels,
+                               NULL);
+         gst_caps_append_structure (caps, struc);
+    }
+    else
+    {
+        GstPadTemplate *template;
+        template = gst_pad_template_new ("src", GST_PAD_SRC,
+                                         GST_PAD_ALWAYS,
+                                         generate_src_template ());
+        /* we don't have valid width/height/etc yet, so just use the template.. */
+        caps = gst_pad_template_get_caps(template);
+        
+        GST_DEBUG_OBJECT (self, "caps=%"GST_PTR_FORMAT, caps);
+    }
+     
+   
+     
+    return caps;
+     
+}
+
 static void
 omx_setup (GstOmxBaseFilter *omx_base)
 {
+  
     GstOmxAacEnc *self;
     GOmxCore *gomx;
+    GOmxPort *port;
+    
+    OMX_PORT_PARAM_TYPE portInit;
+    OMX_PARAM_PORTDEFINITIONTYPE pInPortDef, pOutPortDef;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
 
     self = GST_OMX_AACENC (omx_base);
     gomx = (GOmxCore *) omx_base->gomx;
-
+   
+    
+    
     GST_INFO_OBJECT (omx_base, "begin");
 
-    /* Input port configuration. */
+    _G_OMX_INIT_PARAM(&portInit);
+    portInit.nPorts = NUM_OF_PORTS;
+    portInit.nStartPortNumber = START_PORT_NUM;
+    G_OMX_PORT_SET_PARAM(omx_base->in_port,OMX_IndexParamAudioInit,&portInit);
 
-    {
-        OMX_PARAM_PORTDEFINITIONTYPE param;
-        G_OMX_PORT_GET_DEFINITION (omx_base->in_port, &param);
+    _G_OMX_INIT_PARAM(&pInPortDef);
+    pInPortDef.nPortIndex = OMX_AUDENC_INPUT_PORT;
+    G_OMX_PORT_GET_DEFINITION (omx_base->in_port, &pInPortDef);
+    pInPortDef.nBufferCountActual = NUM_OF_IN_BUFFERS;
+    pInPortDef.format.audio.eEncoding = OMX_AUDIO_CodingPCM;
+    G_OMX_PORT_SET_DEFINITION (omx_base->in_port, &pInPortDef);
 
-        param.nBufferSize = IN_BUFFER_SIZE;
-        G_OMX_PORT_SET_DEFINITION (omx_base->in_port, &param);
-    }
+    _G_OMX_INIT_PARAM(&pOutPortDef);
+    pOutPortDef.nPortIndex = OMX_AUDENC_OUTPUT_PORT;
+    G_OMX_PORT_GET_DEFINITION (omx_base->out_port, &pOutPortDef);
+    pOutPortDef.nBufferCountActual = NUM_OF_OUT_BUFFERS;
+    pOutPortDef.format.audio.eEncoding = OMX_AUDIO_CodingAAC;
+    G_OMX_PORT_SET_DEFINITION (omx_base->out_port, &pOutPortDef);
+   
+
+
+   
     /* PCM configuration. */
     {
         OMX_AUDIO_PARAM_PCMMODETYPE param;
-
+        _G_OMX_INIT_PARAM(&param);
         G_OMX_PORT_GET_PARAM (omx_base->in_port, OMX_IndexParamAudioPcm, &param);
 
         param.nSamplingRate = self->rate;
@@ -358,18 +595,10 @@ omx_setup (GstOmxBaseFilter *omx_base)
         G_OMX_PORT_SET_PARAM (omx_base->in_port, OMX_IndexParamAudioPcm, &param);
     }
 
-     /* output port configuration. */
-    {
-        OMX_PARAM_PORTDEFINITIONTYPE param;
-        G_OMX_PORT_GET_DEFINITION (omx_base->out_port, &param);
-
-        param.nBufferSize = OUT_BUFFER_SIZE;
-        G_OMX_PORT_SET_DEFINITION (omx_base->out_port, &param);
-    }
     /* AAC configuration. */
     {
         OMX_AUDIO_PARAM_AACPROFILETYPE param;
-
+        _G_OMX_INIT_PARAM(&param);
         G_OMX_PORT_GET_PARAM (omx_base->out_port, OMX_IndexParamAudioAac, &param);
 
         param.nSampleRate = self->rate;
@@ -387,6 +616,38 @@ omx_setup (GstOmxBaseFilter *omx_base)
         G_OMX_PORT_SET_PARAM (omx_base->out_port, OMX_IndexParamAudioAac, &param);
     }
 
+    GST_DEBUG_OBJECT(self, "SendCommand(PortEnable, %x)", port->port_index);
+    port = g_omx_core_get_port (gomx, "input", 0);
+    eError = OMX_SendCommand (g_omx_core_get_handle (port->core),
+            OMX_CommandPortEnable, port->port_index, NULL);
+    g_sem_down (port->core->port_sem);
+
+    if (eError != OMX_ErrorNone) 
+    {
+        
+        GST_DEBUG_OBJECT(self, "port enable on port %d failed error=%x", port->port_index,eError);
+    }
+    else
+    {
+        GST_DEBUG_OBJECT(self, "port enabled on port index %d ", port->port_index );
+    }
+   
+    port = g_omx_core_get_port (gomx, "output", 1);
+    GST_DEBUG_OBJECT(self, "SendCommand(PortEnable, %x)", port->port_index);
+    eError = OMX_SendCommand (g_omx_core_get_handle (port->core),
+            OMX_CommandPortEnable, 1, NULL);
+    g_sem_down (port->core->port_sem);
+
+    if (eError != OMX_ErrorNone)
+    {
+        GST_DEBUG_OBJECT(self, "port enable on port %d failed error=%x", port->port_index,eError);
+    }
+    else
+    {
+        GST_DEBUG_OBJECT(self, "port enabled on port index %d ", port->port_index );
+    }
+
+  
     GST_INFO_OBJECT (omx_base, "end");
 }
 
@@ -401,8 +662,13 @@ type_instance_init (GTypeInstance *instance,
     self = GST_OMX_AACENC (instance);
 
     omx_base->omx_setup = omx_setup;
+    omx_base->gomx->settings_changed_cb = settings_changed_cb;
+    omx_base->out_port->always_copy = TRUE;
 
     gst_pad_set_setcaps_function (omx_base->sinkpad, sink_setcaps);
+    gst_pad_set_getcaps_function (omx_base->sinkpad, sink_getcaps);
+    gst_pad_set_setcaps_function (omx_base->srcpad, src_setcaps);
+    gst_pad_set_getcaps_function (omx_base->srcpad, src_getcaps);
 
     self->bitrate = DEFAULT_BITRATE;
     self->profile = DEFAULT_PROFILE;
