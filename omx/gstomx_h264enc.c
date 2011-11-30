@@ -156,11 +156,9 @@ set_property (GObject *obj,
 {
     GstOmxBaseFilter *omx_base;
     GstOmxH264Enc *self;
-    GOmxCore *gomx;
 
     omx_base = GST_OMX_BASE_FILTER (obj);
     self = GST_OMX_H264ENC (obj);
-    gomx = (GOmxCore*) omx_base->gomx;
 
     switch (prop_id)
     {
@@ -170,13 +168,11 @@ set_property (GObject *obj,
         case ARG_PROFILE:
         {
             OMX_VIDEO_PARAM_PROFILELEVELTYPE tProfileLevel;
-            GOmxCore *gomx;
             OMX_ERRORTYPE error_val = OMX_ErrorNone;
 
-            gomx = (GOmxCore *) omx_base->gomx;
             _G_OMX_INIT_PARAM (&tProfileLevel);
             tProfileLevel.nPortIndex = omx_base->out_port->port_index;
-            error_val = OMX_GetParameter (gomx->omx_handle,
+            error_val = OMX_GetParameter (g_omx_core_get_handle (omx_base->gomx),
                                           OMX_IndexParamVideoProfileLevelCurrent,
                                           &tProfileLevel);
             g_assert (error_val == OMX_ErrorNone);
@@ -184,7 +180,7 @@ set_property (GObject *obj,
             GST_DEBUG_OBJECT (self, "Profile: param=%d",
                                     (gint)tProfileLevel.eProfile);
 
-            error_val = OMX_SetParameter (gomx->omx_handle,
+            error_val = OMX_SetParameter (g_omx_core_get_handle (omx_base->gomx),
                                           OMX_IndexParamVideoProfileLevelCurrent,
                                           &tProfileLevel);
             g_assert (error_val == OMX_ErrorNone);
@@ -193,13 +189,11 @@ set_property (GObject *obj,
         case ARG_LEVEL:
         {
             OMX_VIDEO_PARAM_PROFILELEVELTYPE tProfileLevel;
-            GOmxCore *gomx;
             OMX_ERRORTYPE error_val = OMX_ErrorNone;
 
-            gomx = (GOmxCore *) omx_base->gomx;
             _G_OMX_INIT_PARAM (&tProfileLevel);
             tProfileLevel.nPortIndex = omx_base->out_port->port_index;
-            error_val = OMX_GetParameter (gomx->omx_handle,
+            error_val = OMX_GetParameter (g_omx_core_get_handle (omx_base->gomx),
                                           OMX_IndexParamVideoProfileLevelCurrent,
                                           &tProfileLevel);
             g_assert (error_val == OMX_ErrorNone);
@@ -207,7 +201,7 @@ set_property (GObject *obj,
             GST_DEBUG_OBJECT (self, "Level: param=%d",
                                     (gint)tProfileLevel.eLevel);
 
-            error_val = OMX_SetParameter (gomx->omx_handle,
+            error_val = OMX_SetParameter (g_omx_core_get_handle (omx_base->gomx),
                                           OMX_IndexParamVideoProfileLevelCurrent,
                                           &tProfileLevel);
             g_assert (error_val == OMX_ErrorNone);
@@ -216,10 +210,8 @@ set_property (GObject *obj,
        case ARG_I_PERIOD:
         {
             OMX_VIDEO_CONFIG_AVCINTRAPERIOD avcIntraPeriod;
-            GOmxCore *gomx;
             OMX_ERRORTYPE error_val = OMX_ErrorNone;
 
-            gomx = (GOmxCore *) omx_base->gomx;
             _G_OMX_INIT_PARAM (&avcIntraPeriod);
             avcIntraPeriod.nPortIndex = omx_base->out_port->port_index;
             error_val = OMX_GetConfig (g_omx_core_get_handle (omx_base->gomx),
