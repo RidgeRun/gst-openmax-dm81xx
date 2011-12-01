@@ -3,6 +3,7 @@ plugin_LTLIBRARIES = libgstomx.la
 libgstomx_la_SOURCES = gstomx.c gstomx.h \
 		       gstomx_interface.c gstomx_interface.h \
 		       gstomx_base_filter.c gstomx_base_filter.h \
+		       gstomx_base_filter2.c gstomx_base_filter2.h \
 		       gstomx_base_videodec.c gstomx_base_videodec.h \
 		       gstomx_base_videoenc.c gstomx_base_videoenc.h \
 		       gstomx_base_audiodec.c gstomx_base_audiodec.h \
@@ -13,6 +14,7 @@ libgstomx_la_SOURCES = gstomx.c gstomx.h \
 		       gstomx_volume.c gstomx_volume.h \
 		       gstomx_mpeg4dec.c gstomx_mpeg4dec.h \
 		       gstomx_mpeg2dec.c gstomx_mpeg2dec.h \
+ 		       gstomx_mjpegdec.c gstomx_mjpegdec.h \
 		       gstomx_h263dec.c gstomx_h263dec.h \
 		       gstomx_h264dec.c gstomx_h264dec.h \
                gstomx_vc1dec.c gstomx_vc1dec.h \
@@ -48,8 +50,10 @@ libgstomx_la_SOURCES = gstomx.c gstomx.h \
                gstperf.c gstperf.h  \
                gstomx_buffertransport.c gstomx_buffertransport.h \
                gstomx_base_vfpc.c gstomx_base_vfpc.h \
+               gstomx_base_vfpc2.c gstomx_base_vfpc2.h \
                gstomx_base_ctrl.c gstomx_base_ctrl.h \
                gstomx_scaler.c gstomx_scaler.h   \
+               gstomx_deiscaler.c gstomx_deiscaler.h   \
                gstomx_noisefilter.c gstomx_noisefilter.h  \
 	       gstomx_videomixer.c gstomx_videomixer.h 
 
