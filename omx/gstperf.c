@@ -83,6 +83,7 @@ display_current_fps (gpointer data)
     gchar fps_message[256];
     gdouble time_diff, time_elapsed;
     GstClockTime current_ts = gst_util_get_timestamp ();
+	char *name = GST_OBJECT_NAME(self);
 
     frames_count = self->frames_count;
 
@@ -93,8 +94,8 @@ display_current_fps (gpointer data)
 
     average_fps = (gdouble) frames_count / time_elapsed;
 
-    g_snprintf (fps_message, 255, "frames: %" G_GUINT64_FORMAT " \tcurrent: %.2f\t average: %.2f",  
-    frames_count, rr, average_fps);
+    g_snprintf (fps_message, 255, "%s: frames: %" G_GUINT64_FORMAT " \tcurrent: %.2f\t average: %.2f",  
+    name, frames_count, rr, average_fps);
     g_print ("%s", fps_message);
 
     self->last_frames_count = frames_count;

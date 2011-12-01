@@ -99,7 +99,7 @@ static void type_base_init (gpointer g_class);                                \
 static void type_class_init (gpointer g_class, gpointer class_data);          \
 static void type_instance_init (GTypeInstance *instance, gpointer g_class);   \
 static parent_type ## Class *parent_class;                                    \
-static void type_class_init_trampoline (gpointer g_class, gpointer class_data)\
+static void type_class_init_trampoline ## type (gpointer g_class, gpointer class_data)\
 {                                                                             \
     parent_class = g_type_class_ref (parent_type_macro);                      \
     type_class_init (g_class, class_data);                                    \
@@ -116,7 +116,7 @@ GType type_as_function ## _get_type (void)                                    \
         type_info = g_new0 (GTypeInfo, 1);                                    \
         type_info->class_size = sizeof (type ## Class);                       \
         type_info->base_init = type_base_init;                                \
-        type_info->class_init = type_class_init_trampoline;                   \
+        type_info->class_init = type_class_init_trampoline ## type;           \
         type_info->instance_size = sizeof (type);                             \
         type_info->instance_init = type_instance_init;                        \
         _type = g_type_register_static (parent_type_macro, #type, type_info, 0);\

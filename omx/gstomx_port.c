@@ -999,7 +999,7 @@ g_omx_port_recv (GOmxPort *port)
 #endif
         {
             setup_shared_buffer (port, omx_buffer);
-            if (port->always_copy) 
+            if ((NULL == ret) || port->always_copy) 
                 release_buffer (port, omx_buffer);
         }
     }
