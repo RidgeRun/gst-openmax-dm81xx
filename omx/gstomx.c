@@ -23,6 +23,7 @@
 #include "gstomx_dummy.h"
 #include "gstomx_mpeg4dec.h"
 #include "gstomx_mpeg2dec.h"
+#include "gstomx_mjpegdec.h"
 #include "gstomx_h263dec.h"
 #include "gstomx_h264dec.h"
 // #include "gstomx_vp6dec.h"
@@ -57,6 +58,7 @@
 #include "swcsc.h"
 #include "gstperf.h"
 #include "gstomx_scaler.h"
+#include "gstomx_deiscaler.h"
 #include "gstomx_noisefilter.h"
 #include "gstomx_base_ctrl.h"
 #include "gstomx_vc1dec.h"
@@ -83,6 +85,7 @@ static TableItem element_table[] =
 //    { "omx_dummy",          "libOMX_Core.so",           "OMX.TI.DUCATI1.MISC.SAMPLE",   NULL,                   GST_RANK_NONE,      gst_omx_dummy_get_type },
     { "omx_mpeg4dec",       "libOMX_Core.so",           "OMX.TI.DUCATI.VIDDEC", "",  GST_RANK_PRIMARY,   gst_omx_mpeg4dec_get_type },
     { "omx_h264dec",        "libOMX_Core.so",           "OMX.TI.DUCATI.VIDDEC", "",    GST_RANK_PRIMARY,   gst_omx_h264dec_get_type },
+    { "omx_mjpegdec",       "libOMX_Core.so",           "OMX.TI.DUCATI.VIDDEC", "",    GST_RANK_PRIMARY,   gst_omx_mjpegdec_get_type },
     { "omx_mpeg2dec",       "libOMX_Core.so",           "OMX.TI.DUCATI.VIDDEC", "",  GST_RANK_PRIMARY,   gst_omx_mpeg2dec_get_type },
 //    { "omx_h263dec",        "libOMX_Core.so",           "OMX.TI.DUCATI.VIDDEC", "",   GST_RANK_PRIMARY,   gst_omx_h263dec_get_type },
 //    { "omx_vp6dec",         "libOMX_Core.so",           "OMX.TI.DUCATI1.VIDEO.DECODER", "video_decoder.vp6",    GST_RANK_PRIMARY,   gst_omx_vp6dec_get_type },
@@ -98,7 +101,7 @@ static TableItem element_table[] =
 //    { "omx_amrnbenc",       "libomxil-bellagio.so.0",   "OMX.st.audio_encoder.amrnb",   NULL,                   GST_RANK_NONE,   gst_omx_amrnbenc_get_type },
 //    { "omx_amrwbdec",       "libomxil-bellagio.so.0",   "OMX.st.audio_decoder.amrwb",   NULL,                   GST_RANK_NONE,   gst_omx_amrwbdec_get_type },
 //    { "omx_amrwbenc",       "libomxil-bellagio.so.0",   "OMX.st.audio_encoder.amrwb",   NULL,                   GST_RANK_NONE,   gst_omx_amrwbenc_get_type },
-//    { "omx_aacdec",         "libOMX_Core.so",           "OMX.TI.DSP.AUDDEC", "", GST_RANK_PRIMARY,   gst_omx_aacdec_get_type },
+    { "omx_aacdec",         "libOMX_Core.so",           "OMX.TI.DSP.AUDDEC", "", GST_RANK_PRIMARY,   gst_omx_aacdec_get_type },
       { "omx_aacenc",         "libOMX_Core.so",           "OMX.TI.DSP.AUDENC",          "", GST_RANK_PRIMARY,   gst_omx_aacenc_get_type },
 //    { "omx_adpcmdec",       "libomxil-bellagio.so.0",   "OMX.st.audio_decoder.adpcm",   NULL,                   GST_RANK_NONE,   gst_omx_adpcmdec_get_type },
 //    { "omx_adpcmenc",       "libomxil-bellagio.so.0",   "OMX.st.audio_encoder.adpcm",   NULL,                   GST_RANK_NONE,   gst_omx_adpcmenc_get_type },
@@ -117,6 +120,8 @@ static TableItem element_table[] =
     { "swcsc",         "libOMX_Core.so",   NULL,      NULL,                   GST_RANK_PRIMARY,      gst_swcsc_get_type },
     { "gstperf",         "libOMX_Core.so",   NULL,      NULL,                   GST_RANK_PRIMARY,      gst_perf_get_type },
     { "omx_scaler",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.INDTXSCWB",     "",                   GST_RANK_PRIMARY,      gst_omx_scaler_get_type },
+    { "omx_mdeiscaler",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.DEIMDUALOUT",     "",                   GST_RANK_PRIMARY,      gst_omx_mdeiscaler_get_type },
+    { "omx_hdeiscaler",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.DEIHDUALOUT",     "",                   GST_RANK_PRIMARY,      gst_omx_hdeiscaler_get_type },
     { "omx_noisefilter",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.NF",     "",                   GST_RANK_PRIMARY,      gst_omx_noisefilter_get_type },
     { "omx_ctrl",         "libOMX_Core.so",   "OMX.TI.VPSSM3.CTRL.DC",     "",                   GST_RANK_PRIMARY,      gst_omx_base_ctrl_get_type },
     { "omx_tvp",          "libOMX_Core.so",   "OMX.TI.VPSSM3.CTRL.TVP",     "",                  GST_RANK_PRIMARY,      gst_omx_tvp_get_type },

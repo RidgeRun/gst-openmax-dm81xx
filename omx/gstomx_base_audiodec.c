@@ -95,6 +95,7 @@ settings_changed_cb (GOmxCore *core)
             /** @todo: this shouldn't happen. */
             GST_WARNING_OBJECT (omx_base, "Bad samplerate");
             rate = 44100;
+            channels = 2;
         }
     }
 
