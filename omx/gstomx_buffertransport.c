@@ -112,7 +112,11 @@ static void gst_omxbuffertransport_finalize(GstBuffer *gstbuffer)
 		if(self->addHeader[ii])
     		release_buffer(self->port,self->addHeader[ii]);
 	}
-
+    if(self->addHeader) {
+      free(self->addHeader);
+	  //printf("free\n");
+    }
+	self->addHeader = NULL;
     self->omxbuffer = NULL;
     self->port = NULL;
 
@@ -161,6 +165,9 @@ void gst_omxbuffertransport_set_additional_headers (GstOmxBufferTransport *self 
 
 	if(numHeaders == 0)
 		return;
+
+	if(self->addHeader)
+		free(self->addHeader);
 	
     self->addHeader = malloc(numHeaders*sizeof(OMX_BUFFERHEADERTYPE *));
 

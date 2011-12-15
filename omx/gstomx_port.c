@@ -333,7 +333,7 @@ g_omx_port_start_buffers (GOmxPort *port)
          * the queue, otherwise send to omx for processing (fill it up). */
         if (port->type == GOMX_PORT_INPUT)
         {
-            if (port->always_copy)
+            /*if (port->always_copy)*/
                 g_omx_core_got_buffer (port->core, port, omx_buffer);
         }
         else
@@ -357,9 +357,8 @@ g_omx_port_push_buffer (GOmxPort *port,
 		OMX_PTR appPrivate = omx_buffer->pAppPrivate;
         omx_buffer->pAppPrivate = NULL;
         gst_buffer_unref (appPrivate);
-    }
-
-    async_queue_push (port->queue, omx_buffer);
+    } else
+       async_queue_push (port->queue, omx_buffer);
 }
 
 static gint
