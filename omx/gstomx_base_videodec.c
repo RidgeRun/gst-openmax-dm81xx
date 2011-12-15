@@ -66,7 +66,7 @@ static void
 type_class_init (gpointer g_class,
                  gpointer class_data)
 {
-    GST_OMX_BASE_FILTER_CLASS (g_class)->push_buffer = push_buffer;
+    //GST_OMX_BASE_FILTER_CLASS (g_class)->push_buffer = push_buffer;
 }
 
 static GstFlowReturn
