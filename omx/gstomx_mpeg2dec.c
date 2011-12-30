@@ -232,7 +232,7 @@ initialize_port (GstOmxBaseFilter *omx_base)
   pOutPortDef.nBufferAlignment = 0x0;
 
   /* OMX_VIDEO_PORTDEFINITION values for output port */
-  pOutPortDef.format.video.cMIMEType = "H264";
+  pOutPortDef.format.video.cMIMEType = "MPEG2";
   pOutPortDef.format.video.pNativeRender = NULL;
   pOutPortDef.format.video.nFrameWidth = width;
   pOutPortDef.format.video.nFrameHeight = height;

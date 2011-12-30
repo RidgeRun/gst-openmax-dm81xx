@@ -282,9 +282,9 @@ src_getcaps (GstPad *pad)
                 }
                 else
                 {
-                    gst_structure_set (struc,
-                            "rowstride", G_TYPE_INT, param.format.video.nStride,
-                            NULL);
+					gst_structure_set (struc,
+							"rowstride", G_TYPE_INT, param.format.video.nStride,
+							NULL);
                 }
             }
 
