@@ -154,7 +154,7 @@ create_src_caps (GstOmxBaseFilter2 *omx_base, int idx)
 	}
 
 	gst_structure_set (struc,
-			"interlaced", G_TYPE_BOOLEAN, self->interlaced, NULL);
+			"interlaced", G_TYPE_BOOLEAN, FALSE, NULL);
 
 
     gst_caps_append_structure (caps, struc);
@@ -175,7 +175,7 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
 	OMX_CONFIG_SUBSAMPLING_FACTOR sSubSamplinginfo = {NULL};
 
     GstOmxBaseVfpc2 *self;
-	int i, x, y;
+	int i, x, y, shift = 0;
 
     gomx = (GOmxCore *) omx_base->gomx;
     self = GST_OMX_BASE_VFPC2 (omx_base);
@@ -209,12 +209,14 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
 		if (err != OMX_ErrorNone)
 			return;
 	}
+
+	if (self->interlaced) shift = 1;
     /* Input port configuration. */
     GST_LOG_OBJECT (self, "Setting port definition (input)");
 
     G_OMX_PORT_GET_DEFINITION (omx_base->in_port, &paramPort);
     paramPort.format.video.nFrameWidth = self->in_width;
-    paramPort.format.video.nFrameHeight = self->in_height;
+    paramPort.format.video.nFrameHeight = self->in_height >> shift;
     paramPort.format.video.nStride = self->in_stride;
     paramPort.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
     paramPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
@@ -256,12 +258,12 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     /* Set input channel resolution */
     GST_LOG_OBJECT (self, "Setting channel resolution (input)");
 
-	x = self->in_stride % self->in_width;
-	y = self->in_stride / self->in_width;
+	x = 0; // self->in_stride % self->in_width;
+	y = 0; // self->in_stride / self->in_width;
 
     _G_OMX_INIT_PARAM (&chResolution);
     chResolution.Frm0Width = self->in_width;
-    chResolution.Frm0Height = self->in_height;
+    chResolution.Frm0Height = self->in_height >> shift;
     chResolution.Frm0Pitch = self->in_stride;
     chResolution.Frm1Width = 0;
     chResolution.Frm1Height = 0;
@@ -269,7 +271,7 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     chResolution.FrmStartX = x;
     chResolution.FrmStartY = y;
     chResolution.FrmCropWidth = self->in_width - x;
-    chResolution.FrmCropHeight = self->in_height - y;
+    chResolution.FrmCropHeight = (self->in_height - y) >> shift;
     chResolution.eDir = OMX_DirInput;
     chResolution.nChId = 0;
     err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);
@@ -277,15 +279,15 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     if (err != OMX_ErrorNone)
         return;
 
-	_G_OMX_INIT_PARAM(&sSubSamplinginfo);
 #if 1
+	_G_OMX_INIT_PARAM(&sSubSamplinginfo);
 	sSubSamplinginfo.nSubSamplingFactor = 1;
 	err = OMX_SetConfig ( gomx->omx_handle, ( OMX_INDEXTYPE )
 			( OMX_TI_IndexConfigSubSamplingFactor ),
 			&sSubSamplinginfo );
+	if (err != OMX_ErrorNone)
+		return;
 #endif
-    if (err != OMX_ErrorNone)
-        return;
 
     /* Set output channel resolution */
     GST_LOG_OBJECT (self, "Setting channel resolution (output)");
@@ -311,8 +313,9 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     _G_OMX_INIT_PARAM (&algEnable);
     algEnable.nPortIndex = 0;
     algEnable.nChId = 0;
-	/* TODO: Disable deinterlacing for now */
-    algEnable.bAlgBypass = OMX_TRUE;
+    algEnable.bAlgBypass = (self->interlaced)?OMX_FALSE:OMX_TRUE;
+
+	omx_base->input_fields_separately = self->interlaced;
 
     err = OMX_SetConfig (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexConfigAlgEnable, &algEnable);
 

@@ -104,32 +104,34 @@ setup_input_buffer (GstOmxBaseFilter *self, GstBuffer *buf)
         /* retrieve incoming buffer port information */
         port = GST_GET_OMXPORT (buf);
 
-        /* configure input buffer size to match with upstream buffer */
-        G_OMX_PORT_GET_DEFINITION (self->in_port, &param);
-        param.nBufferSize =  GST_BUFFER_SIZE (buf);
-        param.nBufferCountActual = port->num_buffers;
-        G_OMX_PORT_SET_DEFINITION (self->in_port, &param);
+		/* Check if output port has set always_copy */
+		if (port->always_copy != TRUE) {
+			/* configure input buffer size to match with upstream buffer */
+			G_OMX_PORT_GET_DEFINITION (self->in_port, &param);
+			param.nBufferSize =  GST_BUFFER_SIZE (buf);
+			param.nBufferCountActual = port->num_buffers;
+			G_OMX_PORT_SET_DEFINITION (self->in_port, &param);
 
-        /* allocate resource to save the incoming buffer port pBuffer pointer in
-         * OmxBufferInfo structure.
-         */
-        in_port =  self->in_port;
-        in_port->share_buffer_info = malloc (sizeof(OmxBufferInfo));
-        in_port->share_buffer_info->pBuffer = malloc (sizeof(int) * port->num_buffers);
-        for (i=0; i < port->num_buffers; i++) {
-            in_port->share_buffer_info->pBuffer[i] = port->buffers[i]->pBuffer;
-        }
+			/* allocate resource to save the incoming buffer port pBuffer pointer in
+			 * OmxBufferInfo structure.
+			 */
+			in_port =  self->in_port;
+			in_port->share_buffer_info = malloc (sizeof(OmxBufferInfo));
+			in_port->share_buffer_info->pBuffer = malloc (sizeof(int) * port->num_buffers);
+			for (i=0; i < port->num_buffers; i++) {
+				in_port->share_buffer_info->pBuffer[i] = port->buffers[i]->pBuffer;
+			}
 
-        /* disable omx_allocate alloc flag, so that we can fall back to shared method */
-        self->in_port->omx_allocate = FALSE;
-        self->in_port->always_copy = FALSE;
-    }
-    else
-    {
-        /* ask openmax to allocate input buffer */
-        self->in_port->omx_allocate = TRUE;
-        self->in_port->always_copy = TRUE;
-    }
+			/* disable omx_allocate alloc flag, so that we can fall back to shared method */
+			self->in_port->omx_allocate = FALSE;
+			self->in_port->always_copy = FALSE;
+
+			return;
+		}
+	}
+	/* ask openmax to allocate input buffer */
+	self->in_port->omx_allocate = TRUE;
+	self->in_port->always_copy = TRUE;
 }
 
 static GstStateChangeReturn

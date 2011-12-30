@@ -98,23 +98,33 @@ setup_input_buffer (GstOmxBaseFilter2 *self, GstBuffer *buf)
 {
     if (GST_IS_OMXBUFFERTRANSPORT (buf))
     {
-        OMX_PARAM_PORTDEFINITIONTYPE param;
+        OMX_PARAM_PORTDEFINITIONTYPE param, peer_param;
         GOmxPort *port, *in_port;
-        gint i;
+        gint i, shift = 0;
 
         /* retrieve incoming buffer port information */
         port = GST_GET_OMXPORT (buf);
 
         /* configure input buffer size to match with upstream buffer */
         G_OMX_PORT_GET_DEFINITION (self->in_port, &param);
+        G_OMX_PORT_GET_DEFINITION (port, &peer_param);
 
-		printf("setup_input_buffer: %dx%d,%d %d, %d\n", param.format.video.nFrameWidth, 
+		printf("this input  params: %dx%d,%d %d %d\n", param.format.video.nFrameWidth, 
 			param.format.video.nFrameHeight, 
 			param.format.video.nStride,
-			param.nBufferSize, GST_BUFFER_SIZE (buf));
+			param.nBufferSize, param.nBufferCountActual);
+		printf("peer output params: %dx%d,%d %d %d\n", peer_param.format.video.nFrameWidth, 
+			peer_param.format.video.nFrameHeight, 
+			peer_param.format.video.nStride,
+			peer_param.nBufferSize, peer_param.nBufferCountActual);
+		printf("incoming buffer: nFilledLen: %d, nOffset: %d nFlags: %x\n", 
+			GST_GET_OMXBUFFER(buf)->nFilledLen, 
+			GST_GET_OMXBUFFER(buf)->nOffset, 
+			GST_GET_OMXBUFFER(buf)->nFlags);
 
         param.nBufferSize =  GST_BUFFER_SIZE (buf);
-        param.nBufferCountActual = port->num_buffers;
+		if (self->input_fields_separately) param.nBufferCountActual = port->num_buffers * 2;
+        else param.nBufferCountActual = port->num_buffers;
         G_OMX_PORT_SET_DEFINITION (self->in_port, &param);
 
         /* allocate resource to save the incoming buffer port pBuffer pointer in
@@ -122,10 +132,23 @@ setup_input_buffer (GstOmxBaseFilter2 *self, GstBuffer *buf)
          */
         in_port =  self->in_port;
         in_port->share_buffer_info = malloc (sizeof(OmxBufferInfo));
-        in_port->share_buffer_info->pBuffer = malloc (sizeof(int) * port->num_buffers);
-        for (i=0; i < port->num_buffers; i++) {
-            in_port->share_buffer_info->pBuffer[i] = port->buffers[i]->pBuffer;
-        }
+		if (self->input_fields_separately) {
+			self->second_field_offset = ( GST_GET_OMXBUFFER(buf)->nFilledLen + GST_GET_OMXBUFFER(buf)->nOffset ) / 3;
+			if (param.format.video.nFrameHeight & 7) {
+				self->second_field_offset += (param.format.video.nStride * (8 - (param.format.video.nFrameHeight & 7)));
+			}
+			in_port->share_buffer_info->pBuffer = malloc (sizeof(int) * port->num_buffers * 2);
+			for (i=0; i < port->num_buffers; i++) {
+				in_port->share_buffer_info->pBuffer[i<<1] = port->buffers[i]->pBuffer;
+				in_port->share_buffer_info->pBuffer[(i<<1)+1] = port->buffers[i]->pBuffer + 
+					self->second_field_offset;
+			}
+		} else {
+			in_port->share_buffer_info->pBuffer = malloc (sizeof(int) * port->num_buffers);
+			for (i=0; i < port->num_buffers; i++) {
+				in_port->share_buffer_info->pBuffer[i] = port->buffers[i]->pBuffer;
+			}
+		}
 
         /* disable omx_allocate alloc flag, so that we can fall back to shared method */
         self->in_port->omx_allocate = FALSE;
@@ -136,6 +159,7 @@ setup_input_buffer (GstOmxBaseFilter2 *self, GstBuffer *buf)
         /* ask openmax to allocate input buffer */
         self->in_port->omx_allocate = TRUE;
         self->in_port->always_copy = TRUE;
+		self->input_fields_separately = FALSE;
     }
 }
 
@@ -628,6 +652,12 @@ pad_chain (GstPad *pad,
                 goto out_flushing;
             }
 
+			if (self->input_fields_separately) {
+				g_omx_port_send_interlaced_fields (in_port, buf, self->second_field_offset);
+                gst_buffer_unref (buf);
+				break;
+			}
+
             sent = g_omx_port_send (in_port, buf);
 
             if (G_UNLIKELY (sent < 0))
@@ -942,6 +972,7 @@ type_instance_init (GTypeInstance *instance,
 		gst_element_add_pad (GST_ELEMENT (self), self->srcpad[i]);
 	}
     self->duration = GST_CLOCK_TIME_NONE;
+	self->input_fields_separately = FALSE;
 
     GST_LOG_OBJECT (self, "end");
 }

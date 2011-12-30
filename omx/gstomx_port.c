@@ -240,7 +240,7 @@ g_omx_port_allocate_buffers (GOmxPort *port)
 
             if (!port->always_copy)
             {
-                buffer_data = port->share_buffer_info->pBuffer[i];
+				buffer_data = port->share_buffer_info->pBuffer[i];
             }
             else if (! port->share_buffer)
             {
@@ -739,6 +739,53 @@ get_input_buffer_header (GOmxPort *port, GstBuffer *src)
 }
 
 /**
+ * Sends a buffer to the OMX component 2-fields separately
+ */
+gint g_omx_port_send_interlaced_fields(GOmxPort *port, GstBuffer *buf, gint second_field_offset)
+{
+	OMX_BUFFERHEADERTYPE *out1, *out2, *in;
+	gint ret;
+	OMX_U8 *pBuffer;
+	int index;
+
+	if (G_UNLIKELY((!GST_IS_OMXBUFFERTRANSPORT (buf)) || port->always_copy)) {
+		GST_ERROR_OBJECT(port->core->object,"Unexpected !!\n");
+		return -1; /* something went wrong */
+	}
+
+	in = GST_GET_OMXBUFFER(buf);
+
+	pBuffer = GST_BUFFER_DATA(buf);
+    index = omxbuffer_index(port, pBuffer);
+    out1 = port->buffers[index];
+    index = omxbuffer_index(port, pBuffer + second_field_offset);
+    out2 = port->buffers[index];
+
+    out1->pBuffer = pBuffer;
+    out2->pBuffer = out1->pBuffer + second_field_offset;
+    out1->nOffset = out2->nOffset = in->nOffset;
+    out1->nFlags = OMX_TI_BUFFERFLAG_VIDEO_FRAME_TYPE_INTERLACE;
+	out2->nFlags = out1->nFlags | OMX_TI_BUFFERFLAG_VIDEO_FRAME_TYPE_INTERLACE_BOTTOM;
+    ret = out1->nFilledLen = in->nFilledLen;
+    out2->nFilledLen = (((in->nFilledLen + in->nOffset) *3) >> 2) - in->nOffset;
+    out1->pAppPrivate = gst_buffer_ref(buf);
+    out2->pAppPrivate = gst_buffer_ref(buf);
+
+	if (port->core->use_timestamps)	{
+		if (GST_CLOCK_TIME_NONE != GST_BUFFER_TIMESTAMP (buf)) {
+			out2->nTimeStamp = out1->nTimeStamp = gst_util_uint64_scale_int (
+					GST_BUFFER_TIMESTAMP (buf),
+					OMX_TICKS_PER_SECOND, GST_SECOND);
+		} else {
+			out2->nTimeStamp = out1->nTimeStamp = (OMX_TICKS)-1;
+		}
+	}
+	release_buffer (port, out1);
+	release_buffer (port, out2);
+	return ret;
+}
+
+/**
  * Send a buffer/event to the OMX component.  This handles conversion of
  * GST buffer, codec-data, and EOS events to the equivalent OMX buffer.
  *
@@ -749,103 +796,102 @@ get_input_buffer_header (GOmxPort *port, GstBuffer *src)
 gint
 g_omx_port_send (GOmxPort *port, gpointer obj)
 {
-   
-    SendPrep send_prep = NULL;
-  
-    g_return_val_if_fail (port->type == GOMX_PORT_INPUT, -1);
+
+	SendPrep send_prep = NULL;
+
+	g_return_val_if_fail (port->type == GOMX_PORT_INPUT, -1);
 
 
-    GstOmxBaseVideoDec *self = GST_OMX_BASE_VIDEODEC (port->core->object);;
-	
-    if (GST_IS_BUFFER (obj))
-    {   
-        if(self->compression_format == OMX_VIDEO_CodingWMV)
-	{
-               
-                if (G_UNLIKELY (GST_BUFFER_FLAG_IS_SET (obj, GST_BUFFER_FLAG_IN_CAPS))) 
-            	send_prep = (SendPrep)send_prep_wmv_codec_data;            
-        	else
-                send_prep = (SendPrep)send_prep_wmv_buffer_data;
-	}
+	GstOmxBaseVideoDec *self = GST_OMX_BASE_VIDEODEC (port->core->object);;
+
+	if (GST_IS_BUFFER (obj))
+	{   
+		if(self->compression_format == OMX_VIDEO_CodingWMV)
+		{
+
+			if (G_UNLIKELY (GST_BUFFER_FLAG_IS_SET (obj, GST_BUFFER_FLAG_IN_CAPS))) 
+				send_prep = (SendPrep)send_prep_wmv_codec_data;            
+			else
+				send_prep = (SendPrep)send_prep_wmv_buffer_data;
+		}
 		else
 			if(self->compression_format == OMX_VIDEO_CodingMPEG4)
-	{
-               
-                if (G_UNLIKELY (GST_BUFFER_FLAG_IS_SET (obj, GST_BUFFER_FLAG_IN_CAPS))) 
-            	send_prep = (SendPrep)send_prep_wmv_codec_data;            
-        	else
-                send_prep = (SendPrep)send_prep_mpeg4_buffer_data;
+			{
+
+				if (G_UNLIKELY (GST_BUFFER_FLAG_IS_SET (obj, GST_BUFFER_FLAG_IN_CAPS))) 
+					send_prep = (SendPrep)send_prep_wmv_codec_data;            
+				else
+					send_prep = (SendPrep)send_prep_mpeg4_buffer_data;
+			}
+			else
+			{
+				if (G_UNLIKELY (GST_BUFFER_FLAG_IS_SET (obj, GST_BUFFER_FLAG_IN_CAPS))) 
+					send_prep = (SendPrep)send_prep_codec_data;            
+				else
+					send_prep = (SendPrep)send_prep_buffer_data;
+			}
 	}
-        else
-        {
-        	if (G_UNLIKELY (GST_BUFFER_FLAG_IS_SET (obj, GST_BUFFER_FLAG_IN_CAPS))) 
-            	send_prep = (SendPrep)send_prep_codec_data;            
-        	else
-                send_prep = (SendPrep)send_prep_buffer_data;
-        }
-    }
-    else if (GST_IS_EVENT (obj))
-    {
-        if (G_LIKELY (GST_EVENT_TYPE (obj) == GST_EVENT_EOS))
-            send_prep = (SendPrep)send_prep_eos_event;
-    }
+	else if (GST_IS_EVENT (obj))
+	{
+		if (G_LIKELY (GST_EVENT_TYPE (obj) == GST_EVENT_EOS))
+			send_prep = (SendPrep)send_prep_eos_event;
+	}
 
-    if (G_LIKELY (send_prep))
-    { 
-        gint ret;
-        OMX_BUFFERHEADERTYPE *omx_buffer = NULL;
+	if (G_LIKELY (send_prep))
+	{ 
+		gint ret;
+		OMX_BUFFERHEADERTYPE *omx_buffer = NULL;
 
-        if (port->always_copy) 
-        {   
-            
-            omx_buffer = request_buffer (port);
-            if (!omx_buffer)
-            {
-                DEBUG (port, "null buffer");
-                return -1;
-            }
+		if (port->always_copy) 
+		{   
 
-            /* don't assume OMX component clears flags!
-             */
-            omx_buffer->nFlags = 0;
+			omx_buffer = request_buffer (port);
+			if (!omx_buffer)
+			{
+				DEBUG (port, "null buffer");
+				return -1;
+			}
 
-            /* if buffer sharing is enabled, pAppPrivate might hold the ref to
-             * a buffer that is no longer required and should be unref'd.  We
-             * do this check here, rather than in send_prep_buffer_data() so
-             * we don't keep the reference live in case, for example, this time
-             * the buffer is used for an EOS event.
-             */
-            if (omx_buffer->pAppPrivate)
-            {
-                GstBuffer *old_buf = omx_buffer->pAppPrivate;
-                gst_buffer_unref (old_buf);
-                omx_buffer->pAppPrivate = NULL;
-                omx_buffer->pBuffer = NULL;     /* just to ease debugging */
-            }
-        }
-        else
-        {
-            
-            if (GST_IS_OMXBUFFERTRANSPORT (obj)) 
-                omx_buffer = get_input_buffer_header (port, obj);
-	    else if(GST_IS_EVENT (obj) && (GST_EVENT_TYPE (obj) == GST_EVENT_EOS)) {
-		omx_buffer = port->buffers[0];
-	    }
-            else {
-                GST_ERROR_OBJECT(port->core->object,"something went wrong!!\n");
-                return -1; /* something went wrong */
-            }
-         }
+			/* don't assume OMX component clears flags!
+			 */
+			omx_buffer->nFlags = 0;
 
-         send_prep (port, omx_buffer, obj);
+			/* if buffer sharing is enabled, pAppPrivate might hold the ref to
+			 * a buffer that is no longer required and should be unref'd.  We
+			 * do this check here, rather than in send_prep_buffer_data() so
+			 * we don't keep the reference live in case, for example, this time
+			 * the buffer is used for an EOS event.
+			 */
+			if (omx_buffer->pAppPrivate)
+			{
+				GstBuffer *old_buf = omx_buffer->pAppPrivate;
+				gst_buffer_unref (old_buf);
+				omx_buffer->pAppPrivate = NULL;
+				omx_buffer->pBuffer = NULL;     /* just to ease debugging */
+			}
+		}
+		else
+		{
+			if (GST_IS_OMXBUFFERTRANSPORT (obj)) 
+				omx_buffer = get_input_buffer_header (port, obj);
+			else if(GST_IS_EVENT (obj) && (GST_EVENT_TYPE (obj) == GST_EVENT_EOS)) {
+				omx_buffer = port->buffers[0];
+			}
+			else {
+				GST_ERROR_OBJECT(port->core->object,"something went wrong!!\n");
+				return -1; /* something went wrong */
+			}
+		}
 
-        ret = omx_buffer->nFilledLen;
-        release_buffer (port, omx_buffer);
-        return ret;
-    }
-   
-    WARNING (port, "unknown obj type");
-    return -1;
+		send_prep (port, omx_buffer, obj);
+
+		ret = omx_buffer->nFilledLen;
+		release_buffer (port, omx_buffer);
+		return ret;
+	}
+
+	WARNING (port, "unknown obj type");
+	return -1;
 }
 
 /**

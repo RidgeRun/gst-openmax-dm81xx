@@ -138,6 +138,7 @@ void g_omx_port_finish (GOmxPort *port);
 void g_omx_port_push_buffer (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer);
 gint g_omx_port_send (GOmxPort *port, gpointer obj);
 gpointer g_omx_port_recv (GOmxPort *port);
+gint g_omx_port_send_interlaced_fields(GOmxPort *port, GstBuffer *buf, gint second_field_offset);
 
 /*
  * Some domain specific port related utility functions:

@@ -75,7 +75,7 @@ create_src_caps (GstOmxBaseFilter *omx_base)
     self = GST_OMX_BASE_VFPC (omx_base);
     caps = gst_pad_peer_get_caps (omx_base->srcpad);
 
-    if (gst_caps_is_empty (caps))
+    if (NULL == caps || gst_caps_is_empty (caps))
     {
         width = self->in_width;
         height = self->in_height;

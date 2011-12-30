@@ -63,6 +63,12 @@ struct GstOmxBaseFilter2
     GstBuffer *codec_data;
     GstClockTime duration;
 
+   /* Used in deinterlacer kind of components where 
+   	  one input interlaced input buffer in the input 
+	  translates to 2 inputs to omx dei component 
+	*/
+    gboolean input_fields_separately;
+	gint second_field_offset;
 };
 
 struct GstOmxBaseFilter2Class

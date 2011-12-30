@@ -51,6 +51,10 @@ enum
 GSTOMX_BOILERPLATE (GstOmxAacEnc, gst_omx_aacenc, GstOmxBaseFilter, GST_OMX_BASE_FILTER_TYPE);
 
 #define GST_TYPE_OMX_AACENC_PROFILE (gst_omx_aacenc_profile_get_type ())
+
+gint rateIdx[] = {96000,88200,64000,48000,44100,32000,24000,22050,16000,12000,
+    11025,8000,7350};
+
 static GType
 gst_omx_aacenc_profile_get_type (void)
 {
@@ -444,6 +448,41 @@ sink_getcaps (GstPad *pad)
      
 }
 
+static guint gst_get_aac_rateIdx (guint rate)
+{
+    gint i;
+
+    for (i=0; i < 13; i++){
+        if (rate >= rateIdx[i])
+            return i;
+    }
+
+    return 15;
+}
+
+static GstBuffer *gst_omx_aacenc_generate_codec_data (GstOmxBaseFilter *omx_base){
+    GstBuffer *codec_data = NULL;
+    guchar *data;
+    guint sr_idx;
+    GstOmxAacEnc *self;
+
+    self = GST_OMX_AACENC (omx_base);
+    /*
+     * Now create the codec data header, it goes like
+     * 5 bit: profile
+     * 4 bit: sample rate index
+     * 4 bit: number of channels
+     * 3 bit: unused
+     */
+    sr_idx = gst_get_aac_rateIdx(self->rate);
+    codec_data = gst_buffer_new_and_alloc(2);
+    data = GST_BUFFER_DATA(codec_data);
+    data[0] = ((self->profile & 0x1F) << 3) | ((sr_idx & 0xE) >> 1);
+    data[1] = ((sr_idx & 0x1) << 7) | ((self->channels & 0xF) << 3);
+
+    return codec_data;
+}
+
 static gboolean
 src_setcaps (GstPad *pad,
               GstCaps *caps)
@@ -454,7 +493,6 @@ src_setcaps (GstPad *pad,
     
     GstOmxAacEnc* self;
     
-
     omx_base = GST_OMX_BASE_FILTER (GST_PAD_PARENT (pad));
     
     self = GST_OMX_AACENC (omx_base);
@@ -481,8 +519,16 @@ src_setcaps (GstPad *pad,
    
     }
 
-    omx_base->in_port->caps = gst_caps_copy (caps);
+    if(self->output_format == OMX_AUDIO_AACStreamFormatADIF)
+	{
+       GstBuffer *codec_data;
+       codec_data = gst_omx_aacenc_generate_codec_data(omx_base);
+	   gst_caps_set_simple (caps, "codec_data",
+                 GST_TYPE_BUFFER, codec_data, (char *)NULL);
+       gst_buffer_unref (codec_data);
+    }
 
+	omx_base->in_port->caps = gst_caps_copy (caps);
 
 
     return gst_pad_set_caps (pad, caps);
