@@ -130,7 +130,7 @@ setup_input_buffer (GstOmxBaseFilter2 *self, GstBuffer *buf)
         /* allocate resource to save the incoming buffer port pBuffer pointer in
          * OmxBufferInfo structure.
          */
-        in_port =  self->in_port;
+        in_port = self->in_port;
         in_port->share_buffer_info = malloc (sizeof(OmxBufferInfo));
 		if (self->input_fields_separately) {
 			self->second_field_offset = ( GST_GET_OMXBUFFER(buf)->nFilledLen + GST_GET_OMXBUFFER(buf)->nOffset ) / 3;
@@ -440,15 +440,23 @@ push_buffer (GstOmxBaseFilter2 *self,
     GstFlowReturn ret = GST_FLOW_ERROR;
 	int i;
 
+	for (i = 0; i< NUM_OUTPUTS; i++) {
+		if (GST_GET_OMXPORT(buf) == self->out_port[i]) {
+			break;
+		}
+	}
+
+	if (i == NUM_OUTPUTS) return ret;
+
     GST_BUFFER_DURATION (buf) = self->duration;
 
 	if (self->gomx->gen_timestamps == TRUE) {
 		if (GST_CLOCK_TIME_NONE == GST_BUFFER_TIMESTAMP(buf) && 
-		    GST_CLOCK_TIME_NONE != self->gomx->last_buf_timestamp &&
+		    GST_CLOCK_TIME_NONE != self->last_buf_timestamp[i] &&
 		    GST_CLOCK_TIME_NONE != self->duration) {
-			GST_BUFFER_TIMESTAMP(buf) = self->gomx->last_buf_timestamp + self->duration;
+			GST_BUFFER_TIMESTAMP(buf) = self->last_buf_timestamp[i] + self->duration;
 		}
-		self->gomx->last_buf_timestamp = GST_BUFFER_TIMESTAMP(buf);
+		self->last_buf_timestamp[i] = GST_BUFFER_TIMESTAMP(buf);
 	}
 
     PRINT_BUFFER (self, buf);
@@ -457,12 +465,7 @@ push_buffer (GstOmxBaseFilter2 *self,
 
 	/** @todo check if tainted */
 	GST_LOG_OBJECT (self, "begin");
-	for (i = 0; i< NUM_OUTPUTS; i++) {
-		if (GST_GET_OMXPORT(buf) == self->out_port[i]) {
-			ret = gst_pad_push (self->srcpad[i], buf);
-			break;
-		}
-	}
+	ret = gst_pad_push (self->srcpad[i], buf);
 	GST_LOG_OBJECT (self, "end");
 
     return ret;
@@ -796,11 +799,12 @@ pad_event (GstPad *pad,
             break;
 
         case GST_EVENT_NEWSEGMENT:
-			self->gomx->last_buf_timestamp = GST_CLOCK_TIME_NONE;
 			for (i = 0; i < NUM_OUTPUTS-1; i++) {
+				self->last_buf_timestamp[i] = GST_CLOCK_TIME_NONE;
 				gst_event_ref(event);
 				ret &= gst_pad_push_event (self->srcpad[i], event);
 			}
+			self->last_buf_timestamp[i] = GST_CLOCK_TIME_NONE;
 			ret &= gst_pad_push_event (self->srcpad[i], event);
             break;
 

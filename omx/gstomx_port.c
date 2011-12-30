@@ -743,7 +743,7 @@ get_input_buffer_header (GOmxPort *port, GstBuffer *src)
  */
 gint g_omx_port_send_interlaced_fields(GOmxPort *port, GstBuffer *buf, gint second_field_offset)
 {
-	OMX_BUFFERHEADERTYPE *out1, *out2, *in;
+	OMX_BUFFERHEADERTYPE *out1, *out2, *in, *first, *second;
 	gint ret;
 	OMX_U8 *pBuffer;
 	int index;
@@ -771,17 +771,24 @@ gint g_omx_port_send_interlaced_fields(GOmxPort *port, GstBuffer *buf, gint seco
     out1->pAppPrivate = gst_buffer_ref(buf);
     out2->pAppPrivate = gst_buffer_ref(buf);
 
+	if (in->nFlags & OMX_TI_BUFFERFLAG_VIDEO_FRAME_TYPE_INTERLACE_TOP_FIRST) {
+		first = out1; second = out2; }
+	else { first = out2; second = out1; }
+
 	if (port->core->use_timestamps)	{
 		if (GST_CLOCK_TIME_NONE != GST_BUFFER_TIMESTAMP (buf)) {
-			out2->nTimeStamp = out1->nTimeStamp = gst_util_uint64_scale_int (
+			first->nTimeStamp = gst_util_uint64_scale_int (
 					GST_BUFFER_TIMESTAMP (buf),
 					OMX_TICKS_PER_SECOND, GST_SECOND);
 		} else {
-			out2->nTimeStamp = out1->nTimeStamp = (OMX_TICKS)-1;
+			first->nTimeStamp = (OMX_TICKS)-1;
 		}
 	}
-	release_buffer (port, out1);
-	release_buffer (port, out2);
+	// Timestamp for the second field comes from adding duration to the
+	// First field timestamp
+	second->nTimeStamp = (OMX_TICKS)-1;
+	release_buffer (port, first);
+	release_buffer (port, second);
 	return ret;
 }
 

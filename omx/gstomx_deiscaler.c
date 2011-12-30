@@ -316,6 +316,11 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     algEnable.bAlgBypass = (self->interlaced)?OMX_FALSE:OMX_TRUE;
 
 	omx_base->input_fields_separately = self->interlaced;
+	if (omx_base->input_fields_separately) {
+		// Halve the duration of output frame
+		if (omx_base->duration != GST_CLOCK_TIME_NONE)
+			omx_base->duration /= 2;
+	}
 
     err = OMX_SetConfig (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexConfigAlgEnable, &algEnable);
 

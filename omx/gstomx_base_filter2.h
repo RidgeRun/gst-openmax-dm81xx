@@ -62,6 +62,7 @@ struct GstOmxBaseFilter2
     GstFlowReturn last_pad_push_return;
     GstBuffer *codec_data;
     GstClockTime duration;
+    GstClockTime last_buf_timestamp[NUM_OUTPUTS];
 
    /* Used in deinterlacer kind of components where 
    	  one input interlaced input buffer in the input 
