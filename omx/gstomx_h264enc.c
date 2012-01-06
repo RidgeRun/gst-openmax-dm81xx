@@ -114,6 +114,8 @@ generate_src_template (void)
                                 "width", GST_TYPE_INT_RANGE, 16, 4096,
                                 "height", GST_TYPE_INT_RANGE, 16, 4096,
                                 "framerate", GST_TYPE_FRACTION_RANGE, 0, 1, G_MAXINT, 1,
+                                "stream-format", G_TYPE_STRING, "byte-stream",
+                                "alignment", G_TYPE_STRING, "au",
                                 NULL);
 
     return caps;
@@ -380,7 +382,7 @@ type_class_init (gpointer g_class,
 }
 
 static void
-omx_h264_push_cb (GstOmxBaseFilter *omx_base)
+omx_h264_push_cb (GstOmxBaseFilter *omx_base, GstBuffer *buf)
 {
     static guint cont;
     GstOmxH264Enc *self;
@@ -419,7 +421,7 @@ omx_h264_push_cb (GstOmxBaseFilter *omx_base)
             cont++;
 		}
     }
-
+	GST_BUFFER_CAPS(buf) = gst_caps_ref(GST_PAD_CAPS(omx_base->srcpad));
 }
 
 static void
@@ -485,6 +487,8 @@ settings_changed_cb (GOmxCore *core)
                                         "height", G_TYPE_INT, height,
                                         "framerate", GST_TYPE_FRACTION,
                                         omx_base->framerate_num, omx_base->framerate_denom,
+										"stream-format", G_TYPE_STRING, "byte-stream",
+										"alignment", G_TYPE_STRING, "au",
                                         NULL);
 
         GST_INFO_OBJECT (omx_base, "caps are: %" GST_PTR_FORMAT, new_caps);

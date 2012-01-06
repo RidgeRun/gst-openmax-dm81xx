@@ -133,9 +133,15 @@ setup_input_buffer (GstOmxBaseFilter2 *self, GstBuffer *buf)
         in_port = self->in_port;
         in_port->share_buffer_info = malloc (sizeof(OmxBufferInfo));
 		if (self->input_fields_separately) {
+			int t1, t2;
+			t1 = GST_GET_OMXBUFFER(buf)->nOffset / param.format.video.nStride;
+			t2 = t1 + t1 + ((param.format.video.nFrameHeight + 7) & 0xFFFFFFF8);
+			t1 = t2 * param.format.video.nStride;
 			self->second_field_offset = ( GST_GET_OMXBUFFER(buf)->nFilledLen + GST_GET_OMXBUFFER(buf)->nOffset ) / 3;
-			if (param.format.video.nFrameHeight & 7) {
-				self->second_field_offset += (param.format.video.nStride * (8 - (param.format.video.nFrameHeight & 7)));
+			if (self->second_field_offset != t1) {
+				printf("Second field offset does not look right... correcting it from %d to %d\n", 
+					self->second_field_offset, t1);
+				self->second_field_offset = t1;
 			}
 			in_port->share_buffer_info->pBuffer = malloc (sizeof(int) * port->num_buffers * 2);
 			for (i=0; i < port->num_buffers; i++) {
@@ -461,7 +467,7 @@ push_buffer (GstOmxBaseFilter2 *self,
 
     PRINT_BUFFER (self, buf);
     if (self->push_cb)
-        self->push_cb (self);
+        self->push_cb (self, buf);
 
 	/** @todo check if tainted */
 	GST_LOG_OBJECT (self, "begin");

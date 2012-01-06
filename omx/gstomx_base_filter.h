@@ -34,6 +34,7 @@ G_BEGIN_DECLS
 typedef struct GstOmxBaseFilter GstOmxBaseFilter;
 typedef struct GstOmxBaseFilterClass GstOmxBaseFilterClass;
 typedef void (*GstOmxBaseFilterCb) (GstOmxBaseFilter *self);
+typedef void (*GstOmxBaseFilterPushCb) (GstOmxBaseFilter *self, GstBuffer *buf);
 
 #include "gstomx_util.h"
 #include <async_queue.h>
@@ -56,7 +57,7 @@ struct GstOmxBaseFilter
     GMutex *ready_lock;
 
     GstOmxBaseFilterCb omx_setup;
-    GstOmxBaseFilterCb push_cb;
+    GstOmxBaseFilterPushCb push_cb;
     GstFlowReturn last_pad_push_return;
     GstBuffer *codec_data;
     GstClockTime duration;

@@ -281,7 +281,7 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
 
 #if 1
 	_G_OMX_INIT_PARAM(&sSubSamplinginfo);
-	sSubSamplinginfo.nSubSamplingFactor = 1;
+	sSubSamplinginfo.nSubSamplingFactor = (GST_OMX_DEISCALER(self))->framerate_divisor;
 	err = OMX_SetConfig ( gomx->omx_handle, ( OMX_INDEXTYPE )
 			( OMX_TI_IndexConfigSubSamplingFactor ),
 			&sSubSamplinginfo );
@@ -328,10 +328,60 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
         return;
 }
 
+enum
+{
+    ARG_0,
+    ARG_FRAMERATE_DIV,
+};
+
+static void
+set_property (GObject *obj,
+              guint prop_id,
+              const GValue *value,
+              GParamSpec *pspec)
+{
+    switch (prop_id)
+    {
+        case ARG_FRAMERATE_DIV:
+            (GST_OMX_DEISCALER(obj))->framerate_divisor = g_value_get_uint (value);
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
+            break;
+    }
+}
+
+static void
+get_property (GObject *obj,
+              guint prop_id,
+              GValue *value,
+              GParamSpec *pspec)
+{
+    switch (prop_id)
+    {
+        case ARG_FRAMERATE_DIV:
+            g_value_set_uint (value, (GST_OMX_DEISCALER(obj))->framerate_divisor);
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
+            break;
+    }
+}
+
 static void
 type_class_init (gpointer g_class,
                  gpointer class_data)
 {
+	GObjectClass *gobject_class;
+
+	gobject_class = G_OBJECT_CLASS (g_class);
+	gobject_class->set_property = set_property;
+	gobject_class->get_property = get_property;
+
+	g_object_class_install_property (gobject_class, ARG_FRAMERATE_DIV,
+			g_param_spec_uint ("framerate-divisor", "Output framerate divisor",
+				"Output framerate = (2 * input_framerate) / framerate_divisor",
+				1, 60, 1, G_PARAM_READWRITE));
 }
 
 static void
@@ -344,5 +394,6 @@ type_instance_init (GTypeInstance *instance,
 
     self->omx_setup = omx_setup;
 
+	(GST_OMX_DEISCALER(instance))->framerate_divisor = 1;
 }
 

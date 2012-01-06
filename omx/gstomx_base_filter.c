@@ -414,7 +414,7 @@ push_buffer (GstOmxBaseFilter *self,
 
     PRINT_BUFFER (self, buf);
     if (self->push_cb)
-        self->push_cb (self);
+        self->push_cb (self, buf);
 
     /** @todo check if tainted */
     GST_LOG_OBJECT (self, "begin");
