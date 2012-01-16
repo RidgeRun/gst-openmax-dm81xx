@@ -62,6 +62,7 @@ struct GstOmxBaseTvp
   char *omx_component;
   char *omx_library;
   gint input_interface;
+  gint std;
   gint cap_mode;
   gint input_format;
   gint scan_type;

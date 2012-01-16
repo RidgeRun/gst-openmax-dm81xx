@@ -36,7 +36,8 @@ enum
   ARG_LIBRARY_NAME,
   ARG_INPUT_INTERFACE,
   ARG_CAP_MODE,
-  ARG_SCAN_TYPE
+  ARG_SCAN_TYPE,
+  ARG_STD
 };
 
 GSTOMX_BOILERPLATE (GstOmxBaseTvp, gst_omx_tvp, GstBaseTransform,
@@ -97,7 +98,6 @@ tvp_setcaps (GstBaseTransform * trans, GstCaps * incaps, GstCaps * outcaps)
       return FALSE;
     return TRUE;
   }
-
   return FALSE;
 }
 
@@ -108,6 +108,17 @@ gst_omx_configure_tvp (GstOmxBaseTvp * self)
   GOmxCore *gomx;
 
   gomx = (GOmxCore *) self->gomx;
+  /* Set parameters for the video standard */
+  if (self->std == 1080) {
+    self->height = 1080;
+    self->width = 1920;
+  } else if (self->std == 720) {
+    self->height = 720;
+    self->width = 1280;
+  } else {
+    GST_WARNING_OBJECT (self, "%d unsupported", self->std);
+    g_return_if_fail (0);
+  }
 
   /* Set parameters for TVP controller */
   OMX_PARAM_VFCC_HWPORT_ID sHwPortId;
@@ -241,6 +252,9 @@ set_property (GObject * obj,
       g_free (self->omx_library);
       self->omx_library = g_value_dup_string (value);
       break;
+    case ARG_STD:
+      self->std = g_value_get_uint (value);
+      break;
     case ARG_INPUT_INTERFACE:
     {
       str_value = g_value_dup_string (value);
@@ -303,6 +317,9 @@ get_property (GObject * obj, guint prop_id, GValue * value, GParamSpec * pspec)
       break;
     case ARG_LIBRARY_NAME:
       g_value_set_string (value, self->omx_library);
+      break;
+    case ARG_STD:
+      g_value_set_uint (value, self->std);
       break;
     case ARG_INPUT_INTERFACE:
       if (self->input_interface == OMX_VIDEO_CaptureHWPortVIP2_PORTA)
@@ -393,6 +410,10 @@ type_class_init (gpointer g_class, gpointer class_data)
             "Video scan mode (see below)"
             "\n\t\t\t progressive "
             "\n\t\t\t interlaced ", "progressive", G_PARAM_READWRITE));
+    g_object_class_install_property (gobject_class, ARG_STD,
+        g_param_spec_uint ("std", "video standard",
+            "Video Standard to use: 1080 | 720",
+            720, 1080, 1080, G_PARAM_READWRITE));
 
   }
 }
@@ -424,5 +445,6 @@ type_instance_init (GTypeInstance * instance, gpointer g_class)
   self->cap_mode = OMX_VIDEO_CaptureModeSC_NON_MUX;
   self->scan_type = OMX_VIDEO_CaptureScanTypeProgressive;
   self->mode_configured = FALSE;
+  self->std = 1080;
 
 }
