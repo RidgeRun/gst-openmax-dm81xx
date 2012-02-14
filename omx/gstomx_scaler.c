@@ -93,6 +93,8 @@ create_src_caps (GstOmxBaseFilter *omx_base)
             height = self->in_height;    
         }
     }
+	/* Workaround: Make width multiple of 16, otherwise, scaler crashes */
+	width = (width+15) & 0xFFFFFFF0;
 
     caps = gst_caps_new_empty ();
     struc = gst_structure_new (("video/x-raw-yuv"),
@@ -218,10 +220,10 @@ omx_setup (GstOmxBaseFilter *omx_base)
     chResolution.Frm1Width = 0;
     chResolution.Frm1Height = 0;
     chResolution.Frm1Pitch = 0;
-    chResolution.FrmStartX = 0;//self->left;
-    chResolution.FrmStartY = 0;//self->top;
-    chResolution.FrmCropWidth = 0;//self->in_width - self->left;
-    chResolution.FrmCropHeight = 0;//self->in_height - self->top;
+    chResolution.FrmStartX = 0;
+    chResolution.FrmStartY = 0;
+    chResolution.FrmCropWidth = 0;
+    chResolution.FrmCropHeight = 0;
     chResolution.eDir = OMX_DirInput;
     chResolution.nChId = 0;
     err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);

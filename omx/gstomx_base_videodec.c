@@ -147,9 +147,6 @@ sink_setcaps (GstPad *pad,
                 width, height);
         return FALSE;
     }
-	if(width % 16)
-		width = ((width/16) + 1)*16;
-
     {
         const GValue *framerate = NULL;
         framerate = gst_structure_get_value (structure, "framerate");

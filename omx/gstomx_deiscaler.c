@@ -121,6 +121,8 @@ create_src_caps (GstOmxBaseFilter2 *omx_base, int idx)
         } else 
 			gst_structure_get_int (s, "rowstride", &rowstride);
     }
+	/* Workaround: Make width multiple of 16, otherwise, scaler crashes */
+	width = (width+15) & 0xFFFFFFF0;
 
 	if (caps) gst_caps_unref (caps);
 
@@ -270,9 +272,6 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     /* Set input channel resolution */
     GST_LOG_OBJECT (self, "Setting channel resolution (input)");
 
-	x = 0; // self->in_stride % self->in_width;
-	y = 0; // self->in_stride / self->in_width;
-
     _G_OMX_INIT_PARAM (&chResolution);
     chResolution.Frm0Width = self->in_width;
     chResolution.Frm0Height = self->in_height >> shift;
@@ -282,8 +281,8 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     chResolution.Frm1Pitch = 0;
     chResolution.FrmStartX = x;
     chResolution.FrmStartY = y;
-    chResolution.FrmCropWidth = self->in_width - x;
-    chResolution.FrmCropHeight = (self->in_height - y) >> shift;
+    chResolution.FrmCropWidth = self->in_width;
+    chResolution.FrmCropHeight = self->in_height >> shift;
     chResolution.eDir = OMX_DirInput;
     chResolution.nChId = 0;
     err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);
