@@ -48,6 +48,7 @@ libgstomx_la_SOURCES = gstomx.c gstomx.h \
 		       gstomx_filereadersrc.c gstomx_filereadersrc.h \
                swcsc.c swcsc.h \
                gstperf.c gstperf.h  \
+               gstomxbufferalloc.c gstomxbufferalloc.h \
                gstomx_buffertransport.c gstomx_buffertransport.h \
                gstomx_base_vfpc.c gstomx_base_vfpc.h \
                gstomx_base_vfpc2.c gstomx_base_vfpc2.h \

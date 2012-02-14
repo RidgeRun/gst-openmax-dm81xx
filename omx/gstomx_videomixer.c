@@ -34,6 +34,7 @@ enum
     ARG_NUM_INPUT_BUFFERS,
     ARG_NUM_OUTPUT_BUFFERS,
     ARG_PORT_INDEX,
+	ARG_FRAME_RATE
 };
 
 static void init_interfaces (GType type);
@@ -191,10 +192,12 @@ change_state (GstElement *element,
                   g_omx_port_finish (self->in_port[ii]);
                   g_omx_port_finish (self->out_port[ii]);
 				}
+				//printf("setting EOS to true\n");
+				self->eos = TRUE;
 				for(ii = 0; ii < NUM_PORTS; ii++)
 				  async_queue_disable (self->chInfo[ii].queue);
-
-               // printf("Waiting for ip thread to exit!!\n");
+                //printf("Waiting for ip thread to exit..semup!!\n");
+				g_sem_up(self->bufferSem);
 				pthread_join(self->input_loop, &thread_ret);
 
 			   for(ii = 0; ii < NUM_PORTS; ii++)
@@ -303,6 +306,9 @@ set_property (GObject *obj,
             if (!self->port_configured) 
                 //gstomx_vfpc_set_port_index (obj, self->port_index);
             break;
+		case ARG_FRAME_RATE:
+			self->framerate_num = g_value_get_uint (value);
+			break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
             break;
@@ -338,7 +344,7 @@ get_property (GObject *obj,
             {
                 OMX_PARAM_PORTDEFINITIONTYPE param;
                 GOmxPort *port = (prop_id == ARG_NUM_INPUT_BUFFERS) ?
-                        self->in_port : self->out_port;
+                        self->in_port[0] : self->out_port[0];
 
                 G_OMX_PORT_GET_DEFINITION (port, &param);
 
@@ -440,6 +446,11 @@ type_class_init (gpointer g_class,
                                          g_param_spec_uint ("port-index", "port index",
                                                             "input/output start port index",
                                                             0, 8, 0, G_PARAM_READWRITE));
+
+		g_object_class_install_property (gobject_class, ARG_FRAME_RATE,
+                                         g_param_spec_uint ("framerate", "Frame Rate",
+                                                            "The rate at which the mixer ocmponent would operate",
+                                                            1, 60, 15, G_PARAM_WRITABLE));
     }
 }
 
@@ -755,13 +766,16 @@ vidmix_port_recv (GstOmxVideoMixer *self)
             GST_BUFFER_SIZE(buf) = GST_BUFFER_SIZE(buf)*2;
             if (port->core->use_timestamps)
             {
-                GST_BUFFER_TIMESTAMP (buf) = gst_util_uint64_scale_int (
+                /*GST_BUFFER_TIMESTAMP (buf) = gst_util_uint64_scale_int (
                         omx_buffer->nTimeStamp,
-                        GST_SECOND, OMX_TICKS_PER_SECOND);
+                        GST_SECOND, OMX_TICKS_PER_SECOND);*/
+              GST_BUFFER_TIMESTAMP (buf) = self->timestamp;
+			  GST_BUFFER_DURATION (buf) = self->duration;
+			  self->timestamp += self->duration;
             }
 
             gst_omxbuffertransport_set_additional_headers (buf ,NUM_PORTS -1,&omx_bufferHdr);
-
+			gst_omxbuffertransport_set_bufsem (buf ,self->bufferSem);
             port->n_offset = omx_buffer->nOffset;
 
             ret = buf;
@@ -810,6 +824,10 @@ output_loop (gpointer data)
     {
        
         GstBuffer *buf = GST_BUFFER (obj);
+		/*printf("push : %" 
+                    GST_TIME_FORMAT ", duration: %" GST_TIME_FORMAT"\n",
+                    GST_TIME_ARGS (GST_BUFFER_TIMESTAMP(buf)),
+                    GST_TIME_ARGS (GST_BUFFER_DURATION(buf)));*/
         ret = bclass->push_buffer (self, buf);
         GST_DEBUG_OBJECT (self, "ret=%s", gst_flow_get_name (ret));
     
@@ -986,7 +1004,7 @@ vidmix_port_allocate_buffers (GstOmxVideoMixer *self)
 	    size = param.nBufferSize;
 
 	    port->buffers = g_new0 (OMX_BUFFERHEADERTYPE *, port->num_buffers);
-
+        printf("Input num bufffers:%d\n",port->num_buffers);
 	    for (i = 0; i < port->num_buffers; i++)
 	    {
 	        gpointer buffer_data = NULL;
@@ -1039,6 +1057,7 @@ vidmix_port_allocate_buffers (GstOmxVideoMixer *self)
 	            g_return_if_fail (port->buffers[i]);
 				//printf("allocated buffer:%p\n",port->buffers[i]->pBuffer);
 		    } 
+			self->bufferSem = g_sem_new_with_value(port->num_buffers);
         }else {
             G_OMX_PORT_GET_DEFINITION (port, &param);
 		    size = param.nBufferSize;
@@ -1105,6 +1124,9 @@ static void* vidmix_input_loop(void *arg) {
 	GOmxCore *gomx;
 	int kk=0;
 	gint sent;
+	struct timeval tv;
+		guint64 afttime;
+		guint64 beftime;
 
 	port = self->in_port[0];
 	gomx = port->core;
@@ -1163,29 +1185,71 @@ static void* vidmix_input_loop(void *arg) {
 
 
     while(TRUE) {
+		OMX_BUFFERHEADERTYPE *omx_buffer;
+		//printf("sem cnt:%d\n",self->bufferSem->counter);
+		
+	    /*gettimeofday(&tv, NULL);
+		beftime = (tv.tv_sec * 1000000 + tv.tv_usec);*/
+		g_sem_down(self->bufferSem);
+		/*gettimeofday(&tv, NULL);
+		afttime = (tv.tv_sec * 1000000 + tv.tv_usec);
+		printf("Wait:%lld\n",(afttime-beftime));*/
         for(ii = 0; ii < NUM_PORTS; ii++) {
             port = self->in_port[ii];
 			gomx = port->core;
 			buf = NULL;
 			//printf("pop queue:%d\n",ii);
 			if(self->chInfo[ii].eos == FALSE) {
-			  buf = (GstBuffer *)async_queue_pop_full(self->chInfo[ii].queue,TRUE,FALSE);
+				//printf("force is FALSE\n");
+			  buf = (GstBuffer *)async_queue_pop_full(self->chInfo[ii].queue,FALSE,FALSE);
 			  if(buf == NULL) {
+
+				if(self->eos == TRUE) {
+					printf("goto leave!!\n");
+					goto leave;
+				}
+			  	
                 //printf("NULL buffer...ip exiting!!\n");
-				goto leave;
+                //printf("reuse:%d, buffer:%p!!\n",ii,self->chInfo[ii].lastBuf);
+                //buf = gst_buffer_ref(self->chInfo[ii].lastBuf);
+                //omx_buffer = GST_GET_OMXBUFFER(self->chInfo[ii].lastBuf);
+                g_mutex_lock(port->mutex);
+				//printf("wait:%d,buffer:%p\n",ii,self->chInfo[ii].lastBuf);
+				while(GST_BUFFER_FLAG_IS_SET(self->chInfo[ii].lastBuf,GST_BUFFER_FLAG_BUSY))
+					g_cond_wait(port->cond,port->mutex);
+				//printf("wait done:%d\n",ii);
+				g_mutex_unlock(port->mutex);
+
+                buf = (self->chInfo[ii].lastBuf);
+				//goto leave;
+			  }else {
+                if(self->chInfo[ii].lastBuf) {
+					//printf("unref buffer:%p, refcnt:%d!!\n",self->chInfo[ii].lastBuf,GST_MINI_OBJECT_CAST(self->chInfo[ii].lastBuf)->refcount);
+				  gst_buffer_unref(self->chInfo[ii].lastBuf);
+                }
+				//self->chInfo[ii].lastBuf = gst_buffer_ref(buf);
+				self->chInfo[ii].lastBuf = buf;
 			  }
 			  	
+			  
+			  /*omx_buffer = GST_GET_OMXBUFFER(buf);
+			  omx_buffer->nFlags |= OMX_BUFFERFLAG_BUSY;*/
 			  //printf("send: %d:%p!!\n",ii,buf);
+			  GST_BUFFER_FLAG_SET(buf,GST_BUFFER_FLAG_BUSY);
 	          sent = g_omx_port_send (port, buf);
-	          gst_buffer_unref (buf);
+	          //gst_buffer_unref (buf);
 			}
-			 
+			 //sched_yield();
         }
 		
     }
 	
 leave:
-	//printf("leaving ip thread!!\n");
+	printf("leaving ip thread!!\n");
+	for(ii = 0; ii < NUM_PORTS; ii++)
+		if(self->chInfo[ii].lastBuf)
+			gst_buffer_unref(self->chInfo[ii].lastBuf);
+		
 	return NULL;
 	
 }
@@ -1229,7 +1293,7 @@ pad_chain (GstPad *pad,
 leave:
 
     GST_LOG_OBJECT (self, "end");
-    //printf("leaving!!\n");
+   // printf("leaving :%d!!\n",ch_info->idx);
     return ret;
 
     /* special conditions */
@@ -1513,7 +1577,7 @@ sink_setcaps (GstPad *pad,
     {
         ch_info->in_stride = gstomx_calculate_stride (ch_info->in_width, format);
     }
-
+#if 0
     {
         const GValue *framerate = NULL;
         framerate = gst_structure_get_value (structure, "framerate");
@@ -1522,13 +1586,15 @@ sink_setcaps (GstPad *pad,
             self->framerate_num = gst_value_get_fraction_numerator (framerate);
             self->framerate_denom = gst_value_get_fraction_denominator (framerate);
 
-            omx_base->duration = gst_util_uint64_scale_int(GST_SECOND,
+           /* omx_base->duration = gst_util_uint64_scale_int(GST_SECOND,
                     gst_value_get_fraction_denominator (framerate),
                     gst_value_get_fraction_numerator (framerate));
             GST_DEBUG_OBJECT (self, "Nominal frame duration =%"GST_TIME_FORMAT,
-                                GST_TIME_ARGS (omx_base->duration));
+                                GST_TIME_ARGS (omx_base->duration));*/
         }
     }
+#endif
+    self->duration = ((guint64)GST_SECOND/self->framerate_num);
 
     if (self->sink_setcaps)
         self->sink_setcaps (pad, caps);
@@ -1630,6 +1696,7 @@ type_instance_init (GTypeInstance *instance,
 	    self->chInfo[ii].queue = async_queue_new ();
 		self->chInfo[ii].idx   = ii; 
 		self->chInfo[ii].eos   = FALSE;
+		self->chInfo[ii].lastBuf   = NULL;
         printf("queue_%d : %p\n",ii,self->chInfo[ii].queue); 
 	    gst_pad_set_element_private(self->sinkpad[ii], &(self->chInfo[ii]));
 
@@ -1650,9 +1717,13 @@ type_instance_init (GTypeInstance *instance,
 
     gst_pad_set_setcaps_function (self->srcpad,
             GST_DEBUG_FUNCPTR (src_setcaps));
-
-    self->duration = GST_CLOCK_TIME_NONE;
-    printf("In instance init/...done!!\n");
+	
+	self->framerate_num = 15;
+    self->framerate_denom = 1;
+	self->timestamp = 0;
+	/*printf("duration:%lld, in time : %" 
+                    GST_TIME_FORMAT "\n",self->duration,GST_TIME_ARGS(self->duration));
+    printf("In instance init/...done!!\n");*/
     GST_LOG_OBJECT (self, "end");
 }
 

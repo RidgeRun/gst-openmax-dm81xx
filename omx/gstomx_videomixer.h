@@ -49,6 +49,7 @@ typedef struct ip_params {
      gint in_width, in_height, in_stride;
 	 AsyncQueue *queue;
 	 gboolean eos;
+	 GstBuffer *lastBuf;
 } ip_params ;
 
 
@@ -88,6 +89,8 @@ struct GstOmxVideoMixer
     //gpointer g_class;
     ip_params chInfo[NUM_PORTS]; 
 	guint numEosPending;
+	GSem *bufferSem;
+	GstClockTime timestamp;
 };
 
 

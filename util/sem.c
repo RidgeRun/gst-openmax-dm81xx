@@ -36,6 +36,19 @@ g_sem_new (void)
     return sem;
 }
 
+GSem *
+g_sem_new_with_value (gint value)
+{
+    GSem *sem;
+
+    sem = g_new (GSem, 1);
+    sem->condition = g_cond_new ();
+    sem->mutex = g_mutex_new ();
+    sem->counter = value;
+
+    return sem;
+}
+
 void
 g_sem_free (GSem *sem)
 {
