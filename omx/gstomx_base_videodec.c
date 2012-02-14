@@ -507,7 +507,7 @@ type_instance_init (GTypeInstance *instance,
     omx_base->in_port->always_copy  = TRUE;
     omx_base->out_port->share_buffer = FALSE;
     omx_base->out_port->always_copy = FALSE;
-
+    omx_base->filterType = FILTER_DECODER;
     gst_pad_set_setcaps_function (omx_base->sinkpad,
             GST_DEBUG_FUNCPTR (sink_setcaps));
 

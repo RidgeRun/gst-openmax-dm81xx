@@ -39,6 +39,13 @@ typedef void (*GstOmxBaseFilterPushCb) (GstOmxBaseFilter *self, GstBuffer *buf);
 #include "gstomx_util.h"
 #include <async_queue.h>
 
+typedef enum {
+  FILTER_NONE,
+  FILTER_DECODER,
+  FILTER_ENCODER,
+  FILTER_PP
+} filtertype;
+
 struct GstOmxBaseFilter
 {
     GstElement element;
@@ -61,6 +68,8 @@ struct GstOmxBaseFilter
     GstFlowReturn last_pad_push_return;
     GstBuffer *codec_data;
     GstClockTime duration;
+	gboolean isFlushed;
+	guint filterType;
 
 };
 
