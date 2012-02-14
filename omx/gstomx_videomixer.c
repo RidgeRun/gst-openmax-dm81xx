@@ -34,7 +34,18 @@ enum
     ARG_NUM_INPUT_BUFFERS,
     ARG_NUM_OUTPUT_BUFFERS,
     ARG_PORT_INDEX,
-	ARG_FRAME_RATE
+	ARG_FRAME_RATE,
+	ARG_SETTINGS_CHANGED
+};
+
+enum
+{   
+    ARG_00,
+	ARG_OUT_WIDTH,
+	ARG_OUT_HEIGHT,
+	ARG_OUT_X,
+	ARG_OUT_Y,
+	ARG_OUT_ZORDER
 };
 
 static void init_interfaces (GType type);
@@ -62,6 +73,109 @@ static GstFlowReturn pad_chain (GstPad *pad, GstBuffer *buf);
 static gboolean pad_event (GstPad *pad, GstEvent *event);
 
 static void* vidmix_input_loop(void *arg);
+static void gst_videomixer_pad_get_property (GObject * object, guint prop_id,
+    GValue * value, GParamSpec * pspec);
+static void gst_videomixer_pad_set_property (GObject * object, guint prop_id,
+    const GValue * value, GParamSpec * pspec);
+
+
+GType gst_videomixer_pad_get_type (void);
+G_DEFINE_TYPE (GstVideoMixerPad, gst_videomixer_pad, GST_TYPE_PAD);
+
+static void
+gst_videomixer_pad_class_init (GstVideoMixerPadClass * klass)
+{
+
+  GObjectClass *gobject_class = (GObjectClass *) klass;
+  printf("pad class init!!\n");
+  gobject_class->set_property = gst_videomixer_pad_set_property;
+  gobject_class->get_property = gst_videomixer_pad_get_property;
+
+  g_object_class_install_property (gobject_class, ARG_OUT_WIDTH,
+                                         g_param_spec_uint ("outWidth", "Output width",
+                                                            "Op width",
+                                                            0, 100000, 0, G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class, ARG_OUT_HEIGHT,
+                                         g_param_spec_uint ("outHeight", "Output height",
+                                                            "op height",
+                                                            0, 100000, 0, G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class, ARG_OUT_X,
+                                         g_param_spec_uint ("outX", "Output X",
+                                                            "op X",
+                                                            0, 100000, 0, G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class, ARG_OUT_Y,
+                                         g_param_spec_uint ("outY", "Output Y",
+                                                            "op Y",
+                                                            0, 100000, 0, G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class, ARG_OUT_ZORDER,
+      g_param_spec_uint ("zorder", "Z-Order", "Z Order of the picture",
+          0, 10000, 0,
+          G_PARAM_WRITABLE));
+  
+}
+
+static void
+gst_videomixer_pad_get_property (GObject * object, guint prop_id,
+    GValue * value, GParamSpec * pspec)
+{
+  GstVideoMixerPad *pad = GST_VIDEO_MIXER_PAD (object);
+
+  switch (prop_id) {
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
+}
+
+static void
+gst_videomixer_pad_set_property (GObject * object, guint prop_id,
+    const GValue * value, GParamSpec * pspec)
+{
+  GstVideoMixerPad *pad = GST_VIDEO_MIXER_PAD (object);
+  ip_params *ch_info;
+  ch_info = (ip_params *)gst_pad_get_element_private(pad);
+  switch (prop_id) {
+    case ARG_OUT_WIDTH:
+      ch_info->outWidth = g_value_get_uint (value);
+      break;
+    case ARG_OUT_HEIGHT:
+      ch_info->outHeight = g_value_get_uint (value);
+      break;
+    case ARG_OUT_X:
+      ch_info->outX  = g_value_get_uint (value);
+      break;
+    case ARG_OUT_Y:
+      ch_info->outY  = g_value_get_uint (value);
+      break;
+    case ARG_OUT_ZORDER:
+      ch_info->order = g_value_get_uint (value);
+	  break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
+}
+
+static void
+gst_videomixer_pad_init (GstVideoMixerPad * mixerpad)
+{
+/*
+  gst_pad_set_setcaps_function (GST_PAD (mixerpad),
+      gst_videomixer_pad_sink_setcaps);
+  gst_pad_set_acceptcaps_function (GST_PAD (mixerpad),
+      GST_DEBUG_FUNCPTR (gst_videomixer_pad_sink_acceptcaps));
+  gst_pad_set_getcaps_function (GST_PAD (mixerpad),
+      gst_videomixer_pad_sink_getcaps);
+
+  mixerpad->zorder = DEFAULT_PAD_ZORDER;
+  mixerpad->xpos = DEFAULT_PAD_XPOS;
+  mixerpad->ypos = DEFAULT_PAD_YPOS;
+  mixerpad->alpha = DEFAULT_PAD_ALPHA;*/
+}
 
 
 static void
@@ -208,6 +322,10 @@ change_state (GstElement *element,
 				
                 g_omx_core_stop (core);
                 g_omx_core_unload (core);
+				for(ii = 0; ii < NUM_PORTS; ii++)
+				  g_free(self->orderList[ii]);
+
+				g_free(self->orderList);
                 self->ready = FALSE;
             }
            // g_mutex_unlock (self->ready_lock);
@@ -254,10 +372,66 @@ finalize (GObject *obj)
     g_free (self->omx_library);
 
     g_mutex_free (self->ready_lock);
+	g_mutex_free (self->loop_lock);
 
     G_OBJECT_CLASS (parent_class)->finalize (obj);
 }
 
+void update_scaler(GstOmxVideoMixer *self)
+{
+	 GOmxCore *gomx;
+     OMX_ERRORTYPE err;
+	 int ii,kk;
+	 Olist tmp;
+
+	OMX_CONFIG_VIDCHANNEL_RESOLUTION chResolution;
+		gomx = (GOmxCore *) self->gomx;
+
+		g_mutex_lock(self->loop_lock);
+	    /* Set output channel resolution */
+	    GST_LOG_OBJECT (self, "Setting channel resolution (output)");
+		for(ii = 0;ii < NUM_PORTS ; ii++) {
+	    _G_OMX_INIT_PARAM (&chResolution);
+	    chResolution.Frm0Width = self->chInfo[ii].outWidth;
+	    chResolution.Frm0Height = self->chInfo[ii].outHeight;
+	    chResolution.Frm0Pitch = self->out_stride;
+	    chResolution.Frm1Width = 0;
+	    chResolution.Frm1Height = 0;
+	    chResolution.Frm1Pitch = 0;
+	    chResolution.FrmStartX = self->chInfo[ii].outX*2;
+	    chResolution.FrmStartY = self->chInfo[ii].outY;
+	    chResolution.FrmCropWidth = 0;
+	    chResolution.FrmCropHeight = 0;
+	    chResolution.eDir = OMX_DirOutput;
+		chResolution.nPortIndex = ii;		
+	    chResolution.nChId = ii;
+		//printf("calling setconfig!!\n");
+	    err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);
+
+	    if (err != OMX_ErrorNone) {
+			printf("error setting param!!\n");
+	        return;
+	    }
+		self->orderList[ii]->idx = ii;
+		self->orderList[ii]->order = self->chInfo[ii].order;
+		}
+
+		
+	for(ii=0;ii<NUM_PORTS;ii++)
+		for(kk=ii+1;kk<NUM_PORTS;kk++)
+			if(self->orderList[kk]->order < self->orderList[ii]->order) {
+               tmp = *(self->orderList[kk]);
+			   *(self->orderList[kk]) = *(self->orderList[ii]);
+			   	*(self->orderList[ii]) = tmp;
+			}
+    printf("ip zorder - starting from lowest: %d",self->orderList[0]->idx);
+	for(ii=1;ii<NUM_PORTS;ii++)
+		printf(", %d",self->orderList[ii]->idx);
+	printf("\n");
+		g_mutex_unlock(self->loop_lock);
+		//printf("Ret!!\n");
+		
+}
 static void
 set_property (GObject *obj,
               guint prop_id,
@@ -309,6 +483,11 @@ set_property (GObject *obj,
 		case ARG_FRAME_RATE:
 			self->framerate_num = g_value_get_uint (value);
 			break;
+		case ARG_SETTINGS_CHANGED:
+			self->settingsChanged = g_value_get_boolean (value);
+			update_scaler(self);
+			printf("settings updated!!\n");
+		break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
             break;
@@ -377,7 +556,6 @@ type_base_init (gpointer g_class)
 
         gst_element_class_set_details (element_class, &details);
     }
-    printf("In base init!!\n");
     gst_element_class_add_pad_template (element_class,
         gst_static_pad_template_get (&sink_template));
 
@@ -397,7 +575,6 @@ type_class_init (gpointer g_class,
     gobject_class = G_OBJECT_CLASS (g_class);
     gstelement_class = GST_ELEMENT_CLASS (g_class);
     bclass = GST_OMX_VIDEO_MIXER_CLASS (g_class);
-    printf("In class init!!\n");
     gobject_class->finalize = finalize;
     gstelement_class->change_state = change_state;
     bclass->push_buffer = push_buffer;
@@ -451,7 +628,15 @@ type_class_init (gpointer g_class,
                                          g_param_spec_uint ("framerate", "Frame Rate",
                                                             "The rate at which the mixer ocmponent would operate",
                                                             1, 60, 15, G_PARAM_WRITABLE));
+
+		g_object_class_install_property (gobject_class, ARG_SETTINGS_CHANGED,
+                                         g_param_spec_boolean ("settingsChanged", "settingsChanged",
+                                                               "Indicate if the port settings have changed",
+                                                               TRUE, G_PARAM_WRITABLE));
     }
+
+	/* Register the pad class */
+  (void) (GST_TYPE_VIDEO_MIXER_PAD);
 }
 
 static GstCaps*
@@ -464,12 +649,12 @@ create_src_caps (GstOmxVideoMixer *omx_base)
 
     self = GST_OMX_VIDEO_MIXER (omx_base);
     caps = gst_pad_peer_get_caps (omx_base->srcpad);
-     printf("create src caps!!\n");
+     //printf("create src caps!!\n");
     if (gst_caps_is_empty (caps))
     {
         width = self->chInfo[0].in_width;
         height = self->chInfo[0].in_height;
-		printf("set 1 height:%d, width:%d\n",height,width);
+		//printf("set 1 height:%d, width:%d\n",height,width);
     }
     else
     {
@@ -482,10 +667,10 @@ create_src_caps (GstOmxVideoMixer *omx_base)
         {
             width = self->chInfo[0].in_width;
             height = self->chInfo[0].in_height;  
-			printf("set 2 height:%d, width:%d\n",height,width);
+			//printf("set 2 height:%d, width:%d\n",height,width);
         }
     }
-    printf("set 3 height:%d, width:%d\n",height,width);
+    //printf("set 3 height:%d, width:%d\n",height,width);
     caps = gst_caps_new_empty ();
     struc = gst_structure_new (("video/x-raw-yuv"),
             "width",  G_TYPE_INT, width,
@@ -502,11 +687,12 @@ create_src_caps (GstOmxVideoMixer *omx_base)
 
     gst_caps_append_structure (caps, struc);
 
-	printf("createdf caps:%s\n",gst_caps_to_string(caps));
+	printf("created output caps:%s\n",gst_caps_to_string(caps));
 
     return caps;
 }
 
+guint arr[4][2] = { {0,0}, {1,0}, {0,1}, {1,1} };
 
 static void
 scaler_setup (GstOmxVideoMixer *omx_base)
@@ -525,7 +711,7 @@ scaler_setup (GstOmxVideoMixer *omx_base)
     self = GST_OMX_VIDEO_MIXER (omx_base);
 
     GST_LOG_OBJECT (self, "begin");
-    printf("scaler setup!!|n");
+   // printf("scaler setup!!|n");
     /* set the output cap */
     gst_pad_set_caps (omx_base->srcpad, create_src_caps (omx_base));
     
@@ -571,8 +757,8 @@ scaler_setup (GstOmxVideoMixer *omx_base)
 	    GST_LOG_OBJECT (self, "Setting port definition (output)");
 
 	    G_OMX_PORT_GET_DEFINITION (omx_base->out_port[ii], &paramPort);
-	    paramPort.format.video.nFrameWidth = self->out_width/2;
-	    paramPort.format.video.nFrameHeight = self->out_height/2;
+	    paramPort.format.video.nFrameWidth = self->out_width;
+	    paramPort.format.video.nFrameHeight = self->out_height;
 	    paramPort.format.video.nStride = self->out_stride;
 	    paramPort.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
 	    paramPort.format.video.eColorFormat = OMX_COLOR_FormatYCbYCr;
@@ -621,14 +807,15 @@ scaler_setup (GstOmxVideoMixer *omx_base)
 	    /* Set output channel resolution */
 	    GST_LOG_OBJECT (self, "Setting channel resolution (output)");
 	    _G_OMX_INIT_PARAM (&chResolution);
-	    chResolution.Frm0Width = self->out_width/2;
-	    chResolution.Frm0Height = self->out_height/2;
+		
+		chResolution.Frm0Width = self->out_width/2;
+		chResolution.Frm0Height = self->out_height/2;
 	    chResolution.Frm0Pitch = self->out_stride;
 	    chResolution.Frm1Width = 0;
 	    chResolution.Frm1Height = 0;
 	    chResolution.Frm1Pitch = 0;
-	    chResolution.FrmStartX = 0;
-	    chResolution.FrmStartY = 0;
+	    chResolution.FrmStartX = arr[ii][0]*(chResolution.Frm0Width*2);
+	    chResolution.FrmStartY = arr[ii][1]*chResolution.Frm0Height;
 	    chResolution.FrmCropWidth = 0;
 	    chResolution.FrmCropHeight = 0;
 	    chResolution.eDir = OMX_DirOutput;
@@ -638,6 +825,11 @@ scaler_setup (GstOmxVideoMixer *omx_base)
 
 	    if (err != OMX_ErrorNone)
 	        return;
+
+		self->chInfo[ii].outWidth  = chResolution.Frm0Width; 
+	    self->chInfo[ii].outHeight = chResolution.Frm0Height; 
+	    self->chInfo[ii].outX = arr[ii][0]*self->chInfo[ii].outWidth;
+	    self->chInfo[ii].outY = chResolution.FrmStartY;
 
 	    _G_OMX_INIT_PARAM (&algEnable);
 	    algEnable.nPortIndex = ii;
@@ -649,7 +841,7 @@ scaler_setup (GstOmxVideoMixer *omx_base)
 	    if (err != OMX_ErrorNone)
 	        return;
     }
-	    printf("scaler setup...done!!|n");
+	    //printf("scaler setup...done!!|n");
 }
 
 static void
@@ -662,7 +854,7 @@ omx_setup (GstOmxVideoMixer *omx_base)
 
     self = GST_OMX_VIDEO_MIXER (omx_base);
     gomx = (GOmxCore *) omx_base->gomx;
-    printf("omx_setup!!\n");
+   // printf("omx_setup!!\n");
     GST_INFO_OBJECT (omx_base, "begin");
     
     /* enable input port */
@@ -681,7 +873,7 @@ omx_setup (GstOmxVideoMixer *omx_base)
 
     /* indicate that port is now configured */
     self->port_configured = TRUE;
-    printf("omx_setup...done!!\n");
+    //printf("omx_setup...done!!\n");
     GST_INFO_OBJECT (omx_base, "end");
 }
 
@@ -976,11 +1168,6 @@ wait_for_state (GOmxCore *core,
 leave:
     g_mutex_unlock (core->omx_state_mutex);
 }
-//guint arr[3] = {1920,3840*1080/2,3840*1080/2+1920};
-//guint arr[3] = {1280,1280*720,1280*720+1280};
-guint arr[3][2] = { {1,0}, {0,1}, {1,1} };
-//guint arr[3] = {720,720*480,720*480+720};
-
 
 void
 vidmix_port_allocate_buffers (GstOmxVideoMixer *self)
@@ -1004,7 +1191,7 @@ vidmix_port_allocate_buffers (GstOmxVideoMixer *self)
 	    size = param.nBufferSize;
 
 	    port->buffers = g_new0 (OMX_BUFFERHEADERTYPE *, port->num_buffers);
-        printf("Input num bufffers:%d\n",port->num_buffers);
+        //printf("Input num bufffers:%d\n",port->num_buffers);
 	    for (i = 0; i < port->num_buffers; i++)
 	    {
 	        gpointer buffer_data = NULL;
@@ -1054,6 +1241,7 @@ vidmix_port_allocate_buffers (GstOmxVideoMixer *self)
 
 					
                 //printf("portidx op of buffer ip:%d, op:%d\n",port->buffers[i]->nInputPortIndex,port->buffers[i]->nOutputPortIndex);
+                //port->buffers[i]->nOffset = self->out_width;
 	            g_return_if_fail (port->buffers[i]);
 				//printf("allocated buffer:%p\n",port->buffers[i]->pBuffer);
 		    } 
@@ -1077,7 +1265,7 @@ vidmix_port_allocate_buffers (GstOmxVideoMixer *self)
 	                       port->port_index,
 	                       NULL,
 	                       size,
-	                       (gchar*)buffer_data+(arr[ii -1][0]*self->out_width + arr[ii -1][1]*self->out_width*self->out_height));
+	                       (gchar*)buffer_data/*+(arr[ii -1][0]*self->out_width + arr[ii -1][1]*self->out_width*self->out_height)*/);
 					
 
 	            g_return_if_fail (port->buffers[i]);
@@ -1119,10 +1307,9 @@ videomixer_prepare (GstOmxVideoMixer *self,GOmxCore *core)
 static void* vidmix_input_loop(void *arg) {
 	GstOmxVideoMixer *self = (GstOmxVideoMixer *)arg;
 	GOmxPort *port,*in_port;
-	int ii;
+	int ii,kk;
 	GstBuffer * buf;
 	GOmxCore *gomx;
-	int kk=0;
 	gint sent;
 	struct timeval tv;
 		guint64 afttime;
@@ -1156,7 +1343,6 @@ static void* vidmix_input_loop(void *arg) {
         }
 
         if (gomx->omx_state != OMX_StateIdle) {
-			//g_mutex_unlock (self->ready_lock);
             printf("Transition to idle failed!!\n");
         }
     }
@@ -1168,12 +1354,11 @@ static void* vidmix_input_loop(void *arg) {
         if (G_UNLIKELY (gomx->omx_state == OMX_StateIdle))
         {
             GST_INFO_OBJECT (self, "omx: play");
-			printf("calling omx start!!\n");
+			//printf("calling omx start!!\n");
             g_omx_core_start (gomx);
-			printf("calling omx startret \n");
+			//printf("calling omx startret \n");
 			
             if (gomx->omx_state != OMX_StateExecuting) {
-				//g_mutex_unlock (self->ready_lock);
                 printf("Transition to executing failed!!\n");
             }
         }
@@ -1194,13 +1379,13 @@ static void* vidmix_input_loop(void *arg) {
 		/*gettimeofday(&tv, NULL);
 		afttime = (tv.tv_sec * 1000000 + tv.tv_usec);
 		printf("Wait:%lld\n",(afttime-beftime));*/
-        for(ii = 0; ii < NUM_PORTS; ii++) {
+		g_mutex_lock(self->loop_lock);
+        for(kk = 0; kk < NUM_PORTS; kk++) {
+			ii = self->orderList[kk]->idx;
             port = self->in_port[ii];
 			gomx = port->core;
 			buf = NULL;
-			//printf("pop queue:%d\n",ii);
 			if(self->chInfo[ii].eos == FALSE) {
-				//printf("force is FALSE\n");
 			  buf = (GstBuffer *)async_queue_pop_full(self->chInfo[ii].queue,FALSE,FALSE);
 			  if(buf == NULL) {
 
@@ -1221,35 +1406,32 @@ static void* vidmix_input_loop(void *arg) {
 				g_mutex_unlock(port->mutex);
 
                 buf = (self->chInfo[ii].lastBuf);
-				//goto leave;
 			  }else {
                 if(self->chInfo[ii].lastBuf) {
-					//printf("unref buffer:%p, refcnt:%d!!\n",self->chInfo[ii].lastBuf,GST_MINI_OBJECT_CAST(self->chInfo[ii].lastBuf)->refcount);
 				  gst_buffer_unref(self->chInfo[ii].lastBuf);
                 }
-				//self->chInfo[ii].lastBuf = gst_buffer_ref(buf);
 				self->chInfo[ii].lastBuf = buf;
 			  }
 			  	
-			  
-			  /*omx_buffer = GST_GET_OMXBUFFER(buf);
-			  omx_buffer->nFlags |= OMX_BUFFERFLAG_BUSY;*/
-			  //printf("send: %d:%p!!\n",ii,buf);
 			  GST_BUFFER_FLAG_SET(buf,GST_BUFFER_FLAG_BUSY);
 	          sent = g_omx_port_send (port, buf);
-	          //gst_buffer_unref (buf);
+			  g_mutex_lock(port->mutex);
+				//printf("wait:%d,buffer:%p\n",ii,self->chInfo[ii].lastBuf);
+				while(GST_BUFFER_FLAG_IS_SET(self->chInfo[ii].lastBuf,GST_BUFFER_FLAG_BUSY))
+					g_cond_wait(port->cond,port->mutex);
+				//printf("wait done:%d\n",ii);
+				g_mutex_unlock(port->mutex);
 			}
-			 //sched_yield();
         }
-		
+		g_mutex_unlock(self->loop_lock);
     }
 	
 leave:
-	printf("leaving ip thread!!\n");
+	//printf("leaving ip thread!!\n");
 	for(ii = 0; ii < NUM_PORTS; ii++)
 		if(self->chInfo[ii].lastBuf)
 			gst_buffer_unref(self->chInfo[ii].lastBuf);
-		
+	g_mutex_unlock(self->loop_lock);
 	return NULL;
 	
 }
@@ -1279,7 +1461,7 @@ pad_chain (GstPad *pad,
     g_mutex_lock (self->ready_lock);
 	 if(self->ipCreated == FALSE) {
 
-	 printf("Starting input thread!!\n");
+	 //printf("Starting input thread!!\n");
 			    pthread_create(&self->input_loop,NULL,vidmix_input_loop,(void*)self);
 				self->ipCreated = TRUE;
 	 	}
@@ -1556,9 +1738,9 @@ sink_setcaps (GstPad *pad,
     ch_info = (ip_params *)gst_pad_get_element_private(pad);
     GST_INFO_OBJECT (self, "setcaps (sink): %" GST_PTR_FORMAT, caps);
 
-   name = gst_caps_to_string(caps);
+  /* name = gst_caps_to_string(caps);
    printf("In sink set caps:%s\n",name);
-   g_free(name);
+   g_free(name);*/
     g_return_val_if_fail (caps, FALSE);
     g_return_val_if_fail (gst_caps_is_fixed (caps), FALSE);
 
@@ -1652,13 +1834,15 @@ type_instance_init (GTypeInstance *instance,
     GstOmxVideoMixer *self;
     GstElementClass *element_class;
     GstOmxVideoMixerClass *bclass;
-	int ii;
-
+	int ii,kk;
+	Olist tmp;
+    GstPadTemplate * templ;
+	GstVideoMixerPad *mixpad;
+	
     element_class = GST_ELEMENT_CLASS (g_class);
     bclass = GST_OMX_VIDEO_MIXER_CLASS (g_class);
 
     self = GST_OMX_VIDEO_MIXER (instance);
-    printf("In instance init!!\n");
     GST_LOG_OBJECT (self, "begin");
 
     /* GOmx */
@@ -1681,22 +1865,35 @@ type_instance_init (GTypeInstance *instance,
 	self->numEosPending = NUM_PORTS;
 	self->eos = FALSE;
     self->ready_lock = g_mutex_new ();
-	
+	self->loop_lock = g_mutex_new ();
+
+	self->orderList = (guint*)g_malloc(sizeof(guint*)*NUM_PORTS);
+	templ = gst_element_class_get_pad_template (element_class, "sink");
     for(ii = 0; ii < NUM_PORTS; ii++) {
 		gchar *name = g_strdup_printf ("sink_%02d", ii);
 		
-	    self->sinkpad[ii] =
-	        gst_pad_new_from_template (gst_element_class_get_pad_template (element_class, "sink"), name);
-
+	    /*self->sinkpad[ii] =
+	        gst_pad_new_from_template (gst_element_class_get_pad_template (element_class, "sink"), name);*/
+		self->chInfo[ii].queue = async_queue_new ();
+		self->chInfo[ii].idx   = ii; 
+		self->chInfo[ii].eos   = FALSE;
+		self->chInfo[ii].lastBuf   = NULL;
+		self->chInfo[ii].order   = 0;
+		self->chInfo[ii].outWidth  = 0; 
+	    self->chInfo[ii].outHeight = 0; 
+	    self->chInfo[ii].outX = 0;
+	    self->chInfo[ii].outY = 0;
+        mixpad = g_object_new (GST_TYPE_VIDEO_MIXER_PAD, "name", name, "direction",
+        templ->direction, "template", templ, NULL);
 		g_free(name);
+		self->sinkpad[ii] = (GstPad*)mixpad;
 
 	    gst_pad_set_chain_function (self->sinkpad[ii], bclass->pad_chain);
 	    gst_pad_set_event_function (self->sinkpad[ii], bclass->pad_event);
 
-	    self->chInfo[ii].queue = async_queue_new ();
-		self->chInfo[ii].idx   = ii; 
-		self->chInfo[ii].eos   = FALSE;
-		self->chInfo[ii].lastBuf   = NULL;
+		self->orderList[ii] = (guint*)g_malloc(sizeof(Olist));
+		self->orderList[ii]->idx = ii;
+		self->orderList[ii]->order = self->chInfo[ii].order;
         printf("queue_%d : %p\n",ii,self->chInfo[ii].queue); 
 	    gst_pad_set_element_private(self->sinkpad[ii], &(self->chInfo[ii]));
 
@@ -1705,7 +1902,20 @@ type_instance_init (GTypeInstance *instance,
 		gst_pad_set_setcaps_function (self->sinkpad[ii],
 	            GST_DEBUG_FUNCPTR (sink_setcaps));
     }
-		
+#if 1
+	for(ii=0;ii<NUM_PORTS;ii++)
+		for(kk=ii+1;kk<NUM_PORTS;kk++)
+			if(self->orderList[kk]->order < self->orderList[ii]->order) {
+               tmp = *(self->orderList[kk]);
+			   *(self->orderList[kk]) = *(self->orderList[ii]);
+			   	*(self->orderList[ii]) = tmp;
+			}
+
+	printf("ip zorder - starting from lowest: %d",self->orderList[0]->idx);
+	for(ii=1;ii<NUM_PORTS;ii++)
+		printf(", %d",self->orderList[ii]->idx);
+	printf("\n");
+#endif	
     self->srcpad =
         gst_pad_new_from_template (gst_element_class_get_pad_template (element_class, "src"), "src");
 

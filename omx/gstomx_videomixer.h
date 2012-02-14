@@ -28,6 +28,7 @@
 #include <OMX_TI_Common.h>
 #include <omx_vfpc.h>
 
+#include "gstomx_videomixerpad.h"
 
 G_BEGIN_DECLS
 
@@ -50,7 +51,17 @@ typedef struct ip_params {
 	 AsyncQueue *queue;
 	 gboolean eos;
 	 GstBuffer *lastBuf;
+	 guint order;
+	 guint outWidth;
+	 guint outHeight;
+	 guint outX;
+	 guint outY;
 } ip_params ;
+
+typedef struct Olist {
+     guint idx;
+     gint order;
+} Olist ;
 
 
 struct GstOmxVideoMixer
@@ -91,6 +102,10 @@ struct GstOmxVideoMixer
 	guint numEosPending;
 	GSem *bufferSem;
 	GstClockTime timestamp;
+	
+	guint settingsChanged;
+	Olist **orderList;
+	GMutex *loop_lock;
 };
 
 
