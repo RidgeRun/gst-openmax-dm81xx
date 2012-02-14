@@ -41,8 +41,8 @@ enum
 };
 
 #define DEFAULT_BYTESTREAM FALSE
-#define DEFAULT_PROFILE OMX_VIDEO_AVCProfileHigh
-#define DEFAULT_LEVEL OMX_VIDEO_AVCLevel4
+#define DEFAULT_PROFILE OMX_VIDEO_AVCProfileBaseline
+#define DEFAULT_LEVEL OMX_VIDEO_AVCLevel42
 
 #define GST_TYPE_OMX_VIDEO_AVCPROFILETYPE (gst_omx_video_avcprofiletype_get_type ())
 static GType
@@ -168,6 +168,7 @@ set_property (GObject *obj,
             self->bytestream = g_value_get_boolean (value);
             break;
         case ARG_PROFILE:
+		#if 0
         {
             OMX_VIDEO_PARAM_PROFILELEVELTYPE tProfileLevel;
             OMX_ERRORTYPE error_val = OMX_ErrorNone;
@@ -188,7 +189,12 @@ set_property (GObject *obj,
             g_assert (error_val == OMX_ErrorNone);
             break;
         }
+		#else
+			self->profile = g_value_get_enum(value);
+			break;
+		#endif
         case ARG_LEVEL:
+		#if 0
         {
             OMX_VIDEO_PARAM_PROFILELEVELTYPE tProfileLevel;
             OMX_ERRORTYPE error_val = OMX_ErrorNone;
@@ -209,7 +215,12 @@ set_property (GObject *obj,
             g_assert (error_val == OMX_ErrorNone);
             break;
         }
+		#else
+			self->level = g_value_get_enum(value);
+			break;
+		#endif
        case ARG_I_PERIOD:
+	   #if 0
         {
             OMX_VIDEO_CONFIG_AVCINTRAPERIOD avcIntraPeriod;
             OMX_ERRORTYPE error_val = OMX_ErrorNone;
@@ -231,6 +242,10 @@ set_property (GObject *obj,
             g_assert (error_val == OMX_ErrorNone);
             break;
         }
+	   #else
+	   	self->i_period = g_value_get_uint (value);
+		break;
+	   #endif
        case ARG_IDR_PERIOD:
         {
             self->idr_period = g_value_get_uint (value);
@@ -265,6 +280,7 @@ get_property (GObject *obj,
             g_value_set_boolean (value, self->bytestream);
             break;
         case ARG_PROFILE:
+		#if 0
         {
             OMX_VIDEO_PARAM_PROFILELEVELTYPE tProfileLevel;
             GOmxCore *gomx;
@@ -284,7 +300,12 @@ get_property (GObject *obj,
 
             break;
         }
+		#else
+		g_value_set_enum(value, self->profile);
+		break;
+		#endif
         case ARG_LEVEL:
+		#if 0
         {
             OMX_VIDEO_PARAM_PROFILELEVELTYPE tProfileLevel;
             GOmxCore *gomx;
@@ -304,7 +325,12 @@ get_property (GObject *obj,
 
             break;
         }
+		#else
+		g_value_set_enum(value, self->level);
+		break;
+		#endif
         case ARG_I_PERIOD:
+		#if 0
         {
             OMX_VIDEO_CONFIG_AVCINTRAPERIOD avcIntraPeriod;
             GOmxCore *gomx;
@@ -319,6 +345,10 @@ get_property (GObject *obj,
 
             break;
         }
+		#else
+		g_value_set_uint(value, self->i_period);
+		break;
+		#endif
         case ARG_IDR_PERIOD:
         {
             g_value_set_uint (value, self->idr_period);
@@ -368,7 +398,7 @@ type_class_init (gpointer g_class,
     g_object_class_install_property (gobject_class, ARG_I_PERIOD,
             g_param_spec_uint ("i-period", "Specifies periodicity of I frames",
                     "Specifies periodicity of I frames (0:Disable)",
-                    0, G_MAXINT32, 0, G_PARAM_READWRITE));
+                    0, G_MAXINT32, 90, G_PARAM_READWRITE));
     g_object_class_install_property (gobject_class, ARG_IDR_PERIOD,
             g_param_spec_uint ("force-idr-period", "Specifies periodicity of IDR frames",
                     "Specifies periodicity of IDR frames (0:Disable)",
@@ -384,6 +414,7 @@ type_class_init (gpointer g_class,
 static void
 omx_h264_push_cb (GstOmxBaseFilter *omx_base, GstBuffer *buf)
 {
+#if 0
     static guint cont;
     GstOmxH264Enc *self;
     self = GST_OMX_H264ENC (omx_base);
@@ -421,6 +452,7 @@ omx_h264_push_cb (GstOmxBaseFilter *omx_base, GstBuffer *buf)
             cont++;
 		}
     }
+#endif
 	GST_BUFFER_CAPS(buf) = gst_caps_ref(GST_PAD_CAPS(omx_base->srcpad));
 }
 
@@ -429,7 +461,9 @@ omx_setup (GstOmxBaseFilter *omx_base)
 {
     GstOmxBaseVideoEnc *self;
     GOmxCore *gomx;
+    GstOmxH264Enc *h264enc;
 
+    h264enc = GST_OMX_H264ENC (omx_base);
     self = GST_OMX_BASE_VIDEOENC (omx_base);
     gomx = (GOmxCore *) omx_base->gomx;
 
@@ -441,9 +475,7 @@ omx_setup (GstOmxBaseFilter *omx_base)
         if (OMX_GetExtensionIndex (gomx->omx_handle, "OMX.TI.VideoEncode.Config.NALFormat", &index) == OMX_ErrorNone)
         {
             OMX_U32 nal_format;
-            GstOmxH264Enc *h264enc;
 
-            h264enc = GST_OMX_H264ENC (omx_base);
             nal_format = h264enc->bytestream ? 0 : 1;
             GST_DEBUG_OBJECT (omx_base, "setting 'OMX.TI.VideoEncode.Config.NALFormat' to %ld", nal_format);
 
@@ -454,7 +486,21 @@ omx_setup (GstOmxBaseFilter *omx_base)
             GST_WARNING_OBJECT (omx_base, "'OMX.TI.VideoEncode.Config.NALFormat' unsupported");
         }
     }
+	{
+		OMX_VIDEO_PARAM_AVCTYPE tAVCParams;
 
+		_G_OMX_INIT_PARAM (&tAVCParams);
+
+		tAVCParams.nPortIndex = OMX_DirOutput;
+		OMX_GetParameter(gomx->omx_handle, OMX_IndexParamVideoAvc, &tAVCParams);
+
+		tAVCParams.eLevel = h264enc->level;
+		tAVCParams.eProfile = h264enc->profile;
+		tAVCParams.nPFrames = h264enc->i_period - 1;
+		tAVCParams.nBFrames = 0;
+
+		OMX_SetParameter(gomx->omx_handle, OMX_IndexParamVideoAvc, &tAVCParams);
+	}
     GST_INFO_OBJECT (omx_base, "end");
 }
 
@@ -520,4 +566,8 @@ type_instance_init (GTypeInstance *instance,
 
     self->idr_period = 0;
     self->force_idr = FALSE;
+
+	self->i_period = 90;
+	self->profile = DEFAULT_PROFILE;
+	self->level = DEFAULT_LEVEL;
 }
