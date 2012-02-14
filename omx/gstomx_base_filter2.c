@@ -539,6 +539,8 @@ output_loop (gpointer data)
                 GstBuffer *buf = GST_BUFFER (obj);
                 ret = bclass->push_buffer (self, buf);
                 GST_DEBUG_OBJECT (self, "ret=%s", gst_flow_get_name (ret));
+				// HACK!! Dont care if one of the output pads are not connected
+                ret = GST_FLOW_OK;
             }
         }
         else if (GST_IS_EVENT (obj))
