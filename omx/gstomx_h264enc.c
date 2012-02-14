@@ -24,6 +24,8 @@
 
 #include "gstomx_h264enc.h"
 #include "gstomx.h"
+#include <OMX_TI_Index.h>
+#include <OMX_TI_Video.h>
 
 #include <string.h> /* for memset */
 
@@ -38,11 +40,15 @@ enum
     ARG_I_PERIOD,
     ARG_IDR_PERIOD,
     ARG_FORCE_IDR,
+    ARG_ENCODING_PRESET,
+    ARG_RATECONTROL_PRESET,
 };
 
 #define DEFAULT_BYTESTREAM FALSE
 #define DEFAULT_PROFILE OMX_VIDEO_AVCProfileBaseline
 #define DEFAULT_LEVEL OMX_VIDEO_AVCLevel42
+#define DEFAULT_ENCODE_PRESET OMX_Video_Enc_High_Speed_Med_Quality
+#define DEFAULT_RATECONTROL_PRESET OMX_Video_RC_Low_Delay
 
 #define GST_TYPE_OMX_VIDEO_AVCPROFILETYPE (gst_omx_video_avcprofiletype_get_type ())
 static GType
@@ -100,6 +106,54 @@ gst_omx_video_avcleveltype_get_type ()
         };
 
         type = g_enum_register_static ("GstOmxVideoAVCLevel", vals);
+    }
+
+    return type;
+}
+
+#define GST_TYPE_OMX_VIDEO_ENCODE_PRESETTYPE (gst_omx_video_enocdepreset_get_type ())
+static GType
+gst_omx_video_enocdepreset_get_type ()
+{
+    static GType type = 0;
+
+    if (!type)
+    {
+        static const GEnumValue vals[] =
+        {
+        	{OMX_Video_Enc_High_Quality,                 "High Quality",         "hq"},
+        	{OMX_Video_Enc_User_Defined,                 "User Defined",         "user"},
+        	{OMX_Video_Enc_High_Speed_Med_Quality,       "High Speed Med Qual",  "hsmq"},
+        	{OMX_Video_Enc_Med_Speed_Med_Quality,        "Med Speed Med Qaul",   "msmq"},
+        	{OMX_Video_Enc_Med_Speed_High_Quality,       "Med Speed High Qaul",  "mshq"},
+        	{OMX_Video_Enc_High_Speed,                   "High Speed",           "hs"},
+            {0, NULL, NULL },
+        };
+
+        type = g_enum_register_static ("GstOmxVideoEncoderPreset", vals);
+    }
+
+    return type;
+}
+
+#define GST_TYPE_OMX_VIDEO_RATECONTROL_PRESETTYPE (gst_omx_video_ratecontrolpreset_get_type ())
+static GType
+gst_omx_video_ratecontrolpreset_get_type ()
+{
+    static GType type = 0;
+
+    if (!type)
+    {
+        static const GEnumValue vals[] =
+        {
+        	{OMX_Video_RC_Low_Delay,    "Low Delay",   "low-delay"},
+        	{OMX_Video_RC_Storage,      "Storage",     "storage"},
+        	{OMX_Video_RC_Twopass,      "Two Pass",    "two-pass"},
+        	{OMX_Video_RC_None,         "none",        "none"},
+            {0, NULL, NULL },
+        };
+
+        type = g_enum_register_static ("GstOmxVideoRateControlPreset", vals);
     }
 
     return type;
@@ -256,6 +310,54 @@ set_property (GObject *obj,
             self->force_idr = g_value_get_boolean (value);
             break;
         }
+       case ARG_ENCODING_PRESET:
+         {
+       #if 0
+            OMX_ERRORTYPE error_val = OMX_ErrorNone;
+			OMX_VIDEO_PARAM_ENCODER_PRESETTYPE tEncoderPreset;
+			_G_OMX_INIT_PARAM(&tEncoderPreset);
+			tEncoderPreset.nPortIndex = omx_base->out_port->port_index;
+
+			error_val =
+				OMX_GetParameter(g_omx_core_get_handle (omx_base->gomx),
+						OMX_TI_IndexParamVideoEncoderPreset,
+						&tEncoderPreset);
+			g_assert (error_val == OMX_ErrorNone);
+
+			tEncoderPreset.eEncodingModePreset  = g_value_get_enum (value);
+			error_val =	OMX_SetParameter(g_omx_core_get_handle (omx_base->gomx),
+					OMX_TI_IndexParamVideoEncoderPreset,
+					&tEncoderPreset);
+			g_assert (error_val == OMX_ErrorNone);
+       #else
+			self->encodingPreset = g_value_get_enum(value);
+       #endif
+    	   break;
+         }
+       case ARG_RATECONTROL_PRESET:
+         {
+       #if 0
+            OMX_ERRORTYPE error_val = OMX_ErrorNone;
+			OMX_VIDEO_PARAM_ENCODER_PRESETTYPE tEncoderPreset;
+			_G_OMX_INIT_PARAM(&tEncoderPreset);
+			tEncoderPreset.nPortIndex = omx_base->out_port->port_index;
+
+			error_val =
+				OMX_GetParameter(g_omx_core_get_handle (omx_base->gomx),
+						OMX_TI_IndexParamVideoEncoderPreset,
+						&tEncoderPreset);
+			g_assert (error_val == OMX_ErrorNone);
+
+			tEncoderPreset.eRateControlPreset  = g_value_get_enum (value);
+			error_val =	OMX_SetParameter(g_omx_core_get_handle (omx_base->gomx),
+					OMX_TI_IndexParamVideoEncoderPreset,
+					&tEncoderPreset);
+			g_assert (error_val == OMX_ErrorNone);
+         #else
+			self->ratecontrolPreset = g_value_get_enum(value);
+         #endif
+    	   break;
+         }
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
             break;
@@ -361,6 +463,46 @@ get_property (GObject *obj,
 
             break;
         }
+        case ARG_ENCODING_PRESET:
+        {
+        #if 0
+  			OMX_VIDEO_PARAM_ENCODER_PRESETTYPE tEncoderPreset;
+            GOmxCore *gomx;
+            OMX_ERRORTYPE error_val = OMX_ErrorNone;
+
+            gomx = (GOmxCore *) omx_base->gomx;
+            error_val = OMX_GetParameter(gomx->omx_handle, OMX_TI_IndexParamVideoEncoderPreset,
+								 &tEncoderPreset);
+
+            g_value_set_enum (value, tEncoderPreset.eEncodingModePreset);
+
+            GST_DEBUG_OBJECT (self, "Encoding Preset: param=%d",
+                                      (gint)tEncoderPreset.eEncodingModePreset);
+        #else
+    		g_value_set_enum(value, self->encodingPreset);
+        #endif
+     	   break;
+        }
+        case ARG_RATECONTROL_PRESET:
+        {
+        #if 0
+        	OMX_VIDEO_PARAM_ENCODER_PRESETTYPE tEncoderPreset;
+            GOmxCore *gomx;
+            OMX_ERRORTYPE error_val = OMX_ErrorNone;
+
+            gomx = (GOmxCore *) omx_base->gomx;
+            error_val = OMX_GetParameter(gomx->omx_handle, OMX_TI_IndexParamVideoEncoderPreset,
+								 &tEncoderPreset);
+
+            g_value_set_enum (value, tEncoderPreset.eRateControlPreset);
+
+            GST_DEBUG_OBJECT (self, "RateControl Preset: param=%d",
+                                      (gint)tEncoderPreset.eRateControlPreset);
+        #else
+            g_value_set_enum(value, self->ratecontrolPreset);
+        #endif
+     	   break;
+        }
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
             break;
@@ -406,7 +548,18 @@ type_class_init (gpointer g_class,
     g_object_class_install_property (gobject_class, ARG_FORCE_IDR,
             g_param_spec_boolean ("force-idr", "force-idr", "force next frame to be IDR",
                     FALSE, G_PARAM_WRITABLE));
-
+    g_object_class_install_property (gobject_class, ARG_ENCODING_PRESET,
+    		g_param_spec_enum ("encodingPreset", "Specifies which encoding preset to use",
+                    "Specifies which encoding preset to use",
+                    GST_TYPE_OMX_VIDEO_ENCODE_PRESETTYPE,
+                    DEFAULT_ENCODE_PRESET,
+                    G_PARAM_READWRITE));
+    g_object_class_install_property (gobject_class, ARG_RATECONTROL_PRESET,
+    		g_param_spec_enum ("rateControlPreset", "Specifies what rate control preset to use",
+                    "Specifies what rate control preset to use",
+                    GST_TYPE_OMX_VIDEO_RATECONTROL_PRESETTYPE,
+                    DEFAULT_RATECONTROL_PRESET,
+                    G_PARAM_READWRITE));
 
     }
 }
@@ -414,8 +567,6 @@ type_class_init (gpointer g_class,
 static void
 omx_h264_push_cb (GstOmxBaseFilter *omx_base, GstBuffer *buf)
 {
-#if 0
-    static guint cont;
     GstOmxH264Enc *self;
     self = GST_OMX_H264ENC (omx_base);
 
@@ -424,7 +575,7 @@ omx_h264_push_cb (GstOmxBaseFilter *omx_base, GstBuffer *buf)
 	 */
     if ((self->idr_period > 0) || (self->force_idr))
     {
-        if ((cont == self->idr_period) || (self->force_idr))
+        if ((self->cont == self->idr_period) || (self->force_idr))
         {
             OMX_CONFIG_INTRAREFRESHVOPTYPE confIntraRefreshVOP;
 
@@ -440,19 +591,18 @@ omx_h264_push_cb (GstOmxBaseFilter *omx_base, GstBuffer *buf)
                            OMX_IndexConfigVideoIntraVOPRefresh,
                            &confIntraRefreshVOP);
 
-            if (cont == self->idr_period)
-                cont = 0;
+            if (self->cont == self->idr_period)
+                self->cont = 0;
 
             if (self->force_idr)
             {
                 self->force_idr = FALSE;
-                cont++;
+                self->cont++;
             }
         } else {
-            cont++;
+            self->cont++;
 		}
     }
-#endif
 	GST_BUFFER_CAPS(buf) = gst_caps_ref(GST_PAD_CAPS(omx_base->srcpad));
 }
 
@@ -501,6 +651,21 @@ omx_setup (GstOmxBaseFilter *omx_base)
 
 		OMX_SetParameter(gomx->omx_handle, OMX_IndexParamVideoAvc, &tAVCParams);
 	}
+
+    {
+		OMX_VIDEO_PARAM_ENCODER_PRESETTYPE tEncoderPreset;
+
+		_G_OMX_INIT_PARAM(&tEncoderPreset);
+		tEncoderPreset.nPortIndex = omx_base->out_port->port_index;
+
+		OMX_GetParameter(gomx->omx_handle, OMX_TI_IndexParamVideoEncoderPreset, &tEncoderPreset);
+
+		tEncoderPreset.eEncodingModePreset = h264enc->encodingPreset;
+		tEncoderPreset.eRateControlPreset  = h264enc->ratecontrolPreset;
+
+		OMX_SetParameter(gomx->omx_handle, OMX_TI_IndexParamVideoEncoderPreset,	&tEncoderPreset);
+    }
+
     GST_INFO_OBJECT (omx_base, "end");
 }
 
@@ -565,9 +730,12 @@ type_instance_init (GTypeInstance *instance,
     omx_base_filter->gomx->settings_changed_cb = settings_changed_cb;
 
     self->idr_period = 0;
+    self->cont = 0;
     self->force_idr = FALSE;
 
 	self->i_period = 90;
 	self->profile = DEFAULT_PROFILE;
 	self->level = DEFAULT_LEVEL;
+    self->encodingPreset = OMX_Video_Enc_High_Speed_Med_Quality;
+    self->ratecontrolPreset = OMX_Video_RC_Low_Delay;
 }
