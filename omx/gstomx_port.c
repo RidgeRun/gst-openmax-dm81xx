@@ -1099,7 +1099,7 @@ g_omx_port_flush (GOmxPort *port)
         {
             omx_buffer->nFilledLen = 0;
 
-#ifdef USE_OMXTICORE
+#if 0
             if (omx_buffer->nFlags & OMX_TI_BUFFERFLAG_READONLY)
             {
                 /* For output buffer that is marked with READONLY, we
