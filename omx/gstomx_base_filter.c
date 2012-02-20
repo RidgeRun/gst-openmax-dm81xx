@@ -414,7 +414,7 @@ push_buffer (GstOmxBaseFilter *self,
 
     PRINT_BUFFER (self, buf);
     if (self->push_cb)
-        self->push_cb (self);
+        self->push_cb (self, buf);
 
     /** @todo check if tainted */
     GST_LOG_OBJECT (self, "begin");
@@ -533,7 +533,17 @@ pad_chain (GstPad *pad,
 
     //printf("INput!!\n");
     PRINT_BUFFER (self, buf);
-
+    if(self->isFlushed == TRUE)
+	  if(self->filterType == FILTER_DECODER) {
+		if(GST_BUFFER_FLAG_IS_SET (buf, GST_BUFFER_FLAG_DELTA_UNIT)) {
+            gst_buffer_unref(buf);
+			return ret;
+		} else {
+		  self->isFlushed = FALSE;
+		}
+	  } else 
+	  	self->isFlushed = FALSE;
+		
     gomx = self->gomx;
 
     GST_LOG_OBJECT (self, "begin: size=%u, state=%d", GST_BUFFER_SIZE (buf), gomx->omx_state);
@@ -721,7 +731,7 @@ pad_event (GstPad *pad,
             self->last_pad_push_return = GST_FLOW_OK;
 
             g_omx_core_flush_stop (gomx);
-
+            self->isFlushed = TRUE;
             if (self->ready)
                 gst_pad_start_task (self->srcpad, output_loop, self->srcpad);
 
@@ -885,6 +895,8 @@ type_instance_init (GTypeInstance *instance,
     gst_element_add_pad (GST_ELEMENT (self), self->sinkpad);
     gst_element_add_pad (GST_ELEMENT (self), self->srcpad);
 
+	self->isFlushed = FALSE;
+    self->filterType = FILTER_NONE;
     self->duration = GST_CLOCK_TIME_NONE;
 
     GST_LOG_OBJECT (self, "end");

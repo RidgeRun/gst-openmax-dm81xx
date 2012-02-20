@@ -121,6 +121,8 @@ create_src_caps (GstOmxBaseFilter2 *omx_base, int idx)
         } else 
 			gst_structure_get_int (s, "rowstride", &rowstride);
     }
+	/* Workaround: Make width multiple of 16, otherwise, scaler crashes */
+	width = (width+15) & 0xFFFFFFF0;
 
 	if (caps) gst_caps_unref (caps);
 
@@ -181,6 +183,18 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     self = GST_OMX_BASE_VFPC2 (omx_base);
 
     GST_LOG_OBJECT (self, "begin");
+
+	omx_base->input_fields_separately = self->interlaced;
+
+	if (omx_base->duration != GST_CLOCK_TIME_NONE) {
+		omx_base->duration *= (GST_OMX_DEISCALER(self))->framerate_divisor;
+		self->framerate_denom *= (GST_OMX_DEISCALER(self))->framerate_divisor;
+		if (omx_base->input_fields_separately) {
+			// Halve the duration of output frame
+			omx_base->duration = omx_base->duration/2;
+			self->framerate_num *= 2;
+		}
+	}
 
     /* set the output cap */
 	for (i=0 ; i<NUM_OUTPUTS; i++)
@@ -258,9 +272,6 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     /* Set input channel resolution */
     GST_LOG_OBJECT (self, "Setting channel resolution (input)");
 
-	x = 0; // self->in_stride % self->in_width;
-	y = 0; // self->in_stride / self->in_width;
-
     _G_OMX_INIT_PARAM (&chResolution);
     chResolution.Frm0Width = self->in_width;
     chResolution.Frm0Height = self->in_height >> shift;
@@ -270,8 +281,8 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     chResolution.Frm1Pitch = 0;
     chResolution.FrmStartX = x;
     chResolution.FrmStartY = y;
-    chResolution.FrmCropWidth = self->in_width - x;
-    chResolution.FrmCropHeight = (self->in_height - y) >> shift;
+    chResolution.FrmCropWidth = self->in_width;
+    chResolution.FrmCropHeight = self->in_height >> shift;
     chResolution.eDir = OMX_DirInput;
     chResolution.nChId = 0;
     err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);
@@ -281,7 +292,7 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
 
 #if 1
 	_G_OMX_INIT_PARAM(&sSubSamplinginfo);
-	sSubSamplinginfo.nSubSamplingFactor = 1;
+	sSubSamplinginfo.nSubSamplingFactor = (GST_OMX_DEISCALER(self))->framerate_divisor;
 	err = OMX_SetConfig ( gomx->omx_handle, ( OMX_INDEXTYPE )
 			( OMX_TI_IndexConfigSubSamplingFactor ),
 			&sSubSamplinginfo );
@@ -315,23 +326,66 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     algEnable.nChId = 0;
     algEnable.bAlgBypass = (self->interlaced)?OMX_FALSE:OMX_TRUE;
 
-	omx_base->input_fields_separately = self->interlaced;
-	if (omx_base->input_fields_separately) {
-		// Halve the duration of output frame
-		if (omx_base->duration != GST_CLOCK_TIME_NONE)
-			omx_base->duration /= 2;
-	}
-
     err = OMX_SetConfig (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexConfigAlgEnable, &algEnable);
 
     if (err != OMX_ErrorNone)
         return;
 }
 
+enum
+{
+    ARG_0,
+    ARG_FRAMERATE_DIV,
+};
+
+static void
+set_property (GObject *obj,
+              guint prop_id,
+              const GValue *value,
+              GParamSpec *pspec)
+{
+    switch (prop_id)
+    {
+        case ARG_FRAMERATE_DIV:
+            (GST_OMX_DEISCALER(obj))->framerate_divisor = g_value_get_uint (value);
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
+            break;
+    }
+}
+
+static void
+get_property (GObject *obj,
+              guint prop_id,
+              GValue *value,
+              GParamSpec *pspec)
+{
+    switch (prop_id)
+    {
+        case ARG_FRAMERATE_DIV:
+            g_value_set_uint (value, (GST_OMX_DEISCALER(obj))->framerate_divisor);
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
+            break;
+    }
+}
+
 static void
 type_class_init (gpointer g_class,
                  gpointer class_data)
 {
+	GObjectClass *gobject_class;
+
+	gobject_class = G_OBJECT_CLASS (g_class);
+	gobject_class->set_property = set_property;
+	gobject_class->get_property = get_property;
+
+	g_object_class_install_property (gobject_class, ARG_FRAMERATE_DIV,
+			g_param_spec_uint ("framerate-divisor", "Output framerate divisor",
+				"Output framerate = (2 * input_framerate) / framerate_divisor",
+				1, 60, 1, G_PARAM_READWRITE));
 }
 
 static void
@@ -344,5 +398,6 @@ type_instance_init (GTypeInstance *instance,
 
     self->omx_setup = omx_setup;
 
+	(GST_OMX_DEISCALER(instance))->framerate_divisor = 1;
 }
 

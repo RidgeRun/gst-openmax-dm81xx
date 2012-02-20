@@ -40,6 +40,12 @@ struct GstOmxH264Enc
     gboolean bytestream;
     gint idr_period;
     gint force_idr;
+	OMX_VIDEO_AVCPROFILETYPE profile;
+	OMX_VIDEO_AVCLEVELTYPE level;
+	gint i_period;
+	OMX_VIDEO_ENCODING_MODE_PRESETTYPE encodingPreset;
+	OMX_VIDEO_RATECONTROL_PRESETTYPE ratecontrolPreset;
+	gint cont;
 };
 
 struct GstOmxH264EncClass

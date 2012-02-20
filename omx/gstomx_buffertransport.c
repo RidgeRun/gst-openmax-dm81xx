@@ -98,13 +98,16 @@ release_buffer (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer)
             break;
     }
 }
+#include <sys/time.h>
 
 static void gst_omxbuffertransport_finalize(GstBuffer *gstbuffer)
 {
     GstOmxBufferTransport *self = GST_OMXBUFFERTRANSPORT(gstbuffer);
     int ii;
-    GST_LOG("begin\n");
+    GST_LOG("begin\n"); 
+	static guint64 beftime = 0;
 
+    if(self->omxbuffer)
     release_buffer (self->port, self->omxbuffer);
 
 	for(ii = 0; ii < self->numAdditionalHeaders; ii++) {
@@ -116,10 +119,23 @@ static void gst_omxbuffertransport_finalize(GstBuffer *gstbuffer)
       free(self->addHeader);
 	  //printf("free\n");
     }
+	if(self->parent)
+		gst_buffer_unref(self->parent);
+
+	if(self->bufSem) {
+		struct timeval tv;
+		guint64 afttime;
+	    gettimeofday(&tv, NULL);
+		afttime = (tv.tv_sec * 1000000 + tv.tv_usec);
+		//printf("sem up:%lld\n",(afttime-beftime) );
+		beftime = afttime;
+		g_sem_up(self->bufSem);
+	}
+	
 	self->addHeader = NULL;
     self->omxbuffer = NULL;
     self->port = NULL;
-
+    self->parent = NULL;
     /* Call GstBuffer's finalize routine, so our base class can do it's cleanup
      * as well.  If we don't do this, we'll have a memory leak that is very
      * difficult to track down.
@@ -153,11 +169,46 @@ GstBuffer* gst_omxbuffertransport_new (GOmxPort *port, OMX_BUFFERHEADERTYPE *buf
 
 	tdt_buf->numAdditionalHeaders = 0;
 	tdt_buf->addHeader = NULL;
+	tdt_buf->parent = NULL;
+	tdt_buf->bufSem   = NULL;
 
     GST_LOG("end new\n");
 
     return GST_BUFFER(tdt_buf);
 }
+
+GstBuffer* gst_omxbuffertransport_clone (GstBuffer *parent, GOmxPort *port)
+{
+    GstOmxBufferTransport *tdt_buf;
+    tdt_buf = (GstOmxBufferTransport*)
+              gst_mini_object_new(GST_TYPE_OMXBUFFERTRANSPORT);
+
+    g_return_val_if_fail(tdt_buf != NULL, NULL);
+
+    GST_BUFFER_SIZE(tdt_buf) = GST_BUFFER_SIZE(parent);
+    GST_BUFFER_DATA(tdt_buf) = GST_BUFFER_DATA(parent);
+    GST_BUFFER_CAPS(GST_BUFFER (tdt_buf)) = gst_caps_ref (GST_BUFFER_CAPS(parent));
+	GST_BUFFER_TIMESTAMP(tdt_buf) = GST_BUFFER_TIMESTAMP(parent);
+	GST_BUFFER_DURATION(tdt_buf) = GST_BUFFER_DURATION(parent);
+
+    if (GST_BUFFER_DATA(tdt_buf) == NULL) {
+        gst_mini_object_unref(GST_MINI_OBJECT(tdt_buf));
+        return NULL;
+    }
+
+    tdt_buf->omxbuffer  = NULL;
+    tdt_buf->port       = port;
+	tdt_buf->numAdditionalHeaders = 0;
+	tdt_buf->addHeader = NULL;
+	tdt_buf->bufSem    = NULL;
+	tdt_buf->parent = parent;
+
+    GST_LOG("end new\n");
+
+    return GST_BUFFER(tdt_buf);
+    
+}
+
 
 void gst_omxbuffertransport_set_additional_headers (GstOmxBufferTransport *self ,guint numHeaders,OMX_BUFFERHEADERTYPE **buffer)
 {
@@ -180,4 +231,9 @@ void gst_omxbuffertransport_set_additional_headers (GstOmxBufferTransport *self 
     return ;
 }
 
+void gst_omxbuffertransport_set_bufsem (GstOmxBufferTransport *self ,GSem *sem)
+{
+    self->bufSem = sem;
+    return ;
+}
 

@@ -30,6 +30,8 @@
 
 G_BEGIN_DECLS
 
+#define GST_BUFFER_FLAG_BUSY (GST_BUFFER_FLAG_LAST << 1)
+
 /* Typedefs. */
 
 typedef enum GOmxPortType GOmxPortType;
@@ -88,6 +90,8 @@ struct GOmxPort
 
     /** if omx_allocate flag is not set then structure will contain upstream omx buffer pointer information */
     OmxBufferInfo *share_buffer_info;   
+
+	GCond *cond;
 };
 
 /* Macros. */

@@ -21,11 +21,13 @@
 
 #include "gstomx_base_videodec.h"
 #include "gstomx.h"
+#include "gstomx_buffertransport.h"
 
 #include <gst/video/video.h>
 
 #ifdef USE_OMXTICORE
 #  include <OMX_TI_Index.h>
+#  include <OMX_TI_Common.h>
 #endif
 
 #include <string.h> /* for memset */
@@ -145,9 +147,6 @@ sink_setcaps (GstPad *pad,
                 width, height);
         return FALSE;
     }
-	if(width % 16)
-		width = ((width/16) + 1)*16;
-
     {
         const GValue *framerate = NULL;
         framerate = gst_structure_get_value (structure, "framerate");
@@ -466,6 +465,35 @@ omx_setup (GstOmxBaseFilter *omx_base)
     GST_INFO_OBJECT (omx_base, "end");
 }
 
+static void push_cb (GstOmxBaseFilter *omx_base, GstBuffer *buf)
+{
+    GstOmxBaseVideoDec *self;
+	OMX_BUFFERHEADERTYPE *omxbuffer;
+	GstCaps *caps, tmp;
+	GstStructure *structure;
+	gboolean i;
+
+    self = GST_OMX_BASE_VIDEODEC (omx_base);
+	omxbuffer = GST_GET_OMXBUFFER(buf);
+
+	/* Change interlaced flag in srcpad caps if decoder differs with 
+	   what is already got from the upstream element */
+	i = (0 != (omxbuffer->nFlags & 
+				OMX_TI_BUFFERFLAG_VIDEO_FRAME_TYPE_INTERLACE));
+	if (i != self->interlaced) {
+		caps = gst_caps_copy(GST_PAD_CAPS(omx_base->srcpad));
+		self->interlaced = i;
+		structure = gst_caps_get_structure (caps, 0);
+		if (structure) {
+			gst_structure_set (structure,
+					"interlaced", G_TYPE_BOOLEAN, self->interlaced, NULL);
+		}
+		gst_pad_set_caps(omx_base->srcpad, caps);
+		if (GST_BUFFER_CAPS(buf)) gst_caps_unref(GST_BUFFER_CAPS(buf));
+		GST_BUFFER_CAPS(buf) = caps;
+	}
+}
+
 static void
 type_instance_init (GTypeInstance *instance,
                     gpointer g_class)
@@ -475,6 +503,7 @@ type_instance_init (GTypeInstance *instance,
     omx_base = GST_OMX_BASE_FILTER (instance);
 
     omx_base->omx_setup = omx_setup;
+    omx_base->push_cb = push_cb;
 
     omx_base->gomx->settings_changed_cb = settings_changed_cb;
 
@@ -484,7 +513,7 @@ type_instance_init (GTypeInstance *instance,
     omx_base->in_port->always_copy  = TRUE;
     omx_base->out_port->share_buffer = FALSE;
     omx_base->out_port->always_copy = FALSE;
-
+    omx_base->filterType = FILTER_DECODER;
     gst_pad_set_setcaps_function (omx_base->sinkpad,
             GST_DEBUG_FUNCPTR (sink_setcaps));
 

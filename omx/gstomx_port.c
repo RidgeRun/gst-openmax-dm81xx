@@ -69,6 +69,7 @@ g_omx_port_new (GOmxCore *core, const gchar *name, guint index)
     port->enabled = TRUE;
     port->queue = async_queue_new ();
     port->mutex = g_mutex_new ();
+	port->cond  = g_cond_new();
 
     port->ignore_count = 0;
     port->n_offset = 0;
@@ -83,6 +84,7 @@ g_omx_port_free (GOmxPort *port)
     DEBUG (port, "begin");
 
     g_mutex_free (port->mutex);
+	g_cond_free(port->cond);
     async_queue_free (port->queue);
 
     g_free (port->name);
@@ -355,8 +357,12 @@ g_omx_port_push_buffer (GOmxPort *port,
 		/* Avoid a race condition of pAppPrivate getting set to null 
 		   after the buffer is submitted back again */
 		OMX_PTR appPrivate = omx_buffer->pAppPrivate;
-        omx_buffer->pAppPrivate = NULL;
-        gst_buffer_unref (appPrivate);
+        //omx_buffer->pAppPrivate = NULL;
+    	g_mutex_lock(port->mutex);
+        GST_BUFFER_FLAG_UNSET(appPrivate,GST_BUFFER_FLAG_BUSY);
+		gst_buffer_unref (appPrivate);
+		g_cond_signal(port->cond);
+		g_mutex_unlock(port->mutex);
     } else
        async_queue_push (port->queue, omx_buffer);
 }
@@ -723,7 +729,7 @@ send_prep_eos_event (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, GstEvent 
 static OMX_BUFFERHEADERTYPE *
 get_input_buffer_header (GOmxPort *port, GstBuffer *src)
 {
-    OMX_BUFFERHEADERTYPE *omx_buffer;
+    OMX_BUFFERHEADERTYPE *omx_buffer,*tmp;
     int index;
 
     index = omxbuffer_index(port, GST_BUFFER_DATA (src));
@@ -731,7 +737,11 @@ get_input_buffer_header (GOmxPort *port, GstBuffer *src)
     omx_buffer = port->buffers[index];
 
     omx_buffer->pBuffer = GST_BUFFER_DATA(src);
-    omx_buffer->nOffset = GST_GET_OMXBUFFER(src)->nOffset;
+	tmp = GST_GET_OMXBUFFER(src);
+	if(tmp)
+        omx_buffer->nOffset = tmp->nOffset;
+	else
+		omx_buffer->nOffset = 0;
     omx_buffer->nFilledLen = GST_BUFFER_SIZE (src);
     omx_buffer->pAppPrivate = gst_buffer_ref (src);
 
@@ -1089,7 +1099,7 @@ g_omx_port_flush (GOmxPort *port)
         {
             omx_buffer->nFilledLen = 0;
 
-#ifdef USE_OMXTICORE
+#if 0
             if (omx_buffer->nFlags & OMX_TI_BUFFERFLAG_READONLY)
             {
                 /* For output buffer that is marked with READONLY, we

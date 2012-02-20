@@ -61,6 +61,8 @@ struct _GstOmxBufferTransport {
     GOmxPort *port;
 	guint numAdditionalHeaders;
 	OMX_BUFFERHEADERTYPE **addHeader;
+	GstBuffer *parent;
+	GSem *bufSem;
 };
 
 struct _GstOmxBufferTransportClass {

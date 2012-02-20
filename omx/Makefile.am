@@ -48,17 +48,17 @@ libgstomx_la_SOURCES = gstomx.c gstomx.h \
 		       gstomx_videosink.c gstomx_videosink.h \
 		       gstomx_base_src.c gstomx_base_src.h \
 		       gstomx_filereadersrc.c gstomx_filereadersrc.h \
-		       swcsc.c swcsc.h \
-		       gstperf.c gstperf.h  \
-		       gstomx_buffertransport.c gstomx_buffertransport.h \
-		       gstomx_base_vfpc.c gstomx_base_vfpc.h \
-			   gstomx_base_vfpc2.c gstomx_base_vfpc2.h \
-		       gstomx_base_ctrl.c gstomx_base_ctrl.h \
-		       gstomx_scaler.c gstomx_scaler.h   \
-			   gstomx_deiscaler.c gstomx_deiscaler.h   \
-		       gstomx_noisefilter.c gstomx_noisefilter.h  \
-		       gstomx_videomixer.c gstomx_videomixer.h
-
+               swcsc.c swcsc.h \
+               gstperf.c gstperf.h  \
+               gstomxbufferalloc.c gstomxbufferalloc.h \
+               gstomx_buffertransport.c gstomx_buffertransport.h \
+               gstomx_base_vfpc.c gstomx_base_vfpc.h \
+               gstomx_base_vfpc2.c gstomx_base_vfpc2.h \
+               gstomx_base_ctrl.c gstomx_base_ctrl.h \
+               gstomx_scaler.c gstomx_scaler.h   \
+               gstomx_deiscaler.c gstomx_deiscaler.h   \
+               gstomx_noisefilter.c gstomx_noisefilter.h  \
+	           gstomx_videomixer.c gstomx_videomixer.h 
 
 libgstomx_la_LIBADD = $(OMXCORE_LIBS) $(GST_LIBS) $(GST_BASE_LIBS) -lgstvideo-0.10 $(top_builddir)/util/libutil.la
 libgstomx_la_CFLAGS = $(OMXCORE_CFLAGS) -DUSE_OMXTICORE $(OMXTIAUDIODEC_CFLAGS) $(USE_OMXTIAUDIODEC) $(GST_CFLAGS) $(GST_BASE_CFLAGS) -I$(top_srcdir)/util

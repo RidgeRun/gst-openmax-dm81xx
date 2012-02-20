@@ -37,6 +37,7 @@ generate_sink_template (void)
     caps = gst_caps_new_empty ();
 
     struc = gst_structure_new ("video/x-wmv",
+                               "wmvversion", G_TYPE_INT, 3,
                                "width", GST_TYPE_INT_RANGE, 16, 4096,
                                "height", GST_TYPE_INT_RANGE, 16, 4096,
                                "framerate", GST_TYPE_FRACTION_RANGE, 0, 1, G_MAXINT, 1,
@@ -47,6 +48,7 @@ generate_sink_template (void)
     return caps;
 }
 
+#if 0 // SRC pad template already exists in gstomx_base_videodec.c
 static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE(
     "src",
     GST_PAD_SRC,
@@ -59,6 +61,7 @@ static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE(
          "height=(int)[ 1, MAX ]"
     )
 );
+#endif
 
 static void
 type_base_init (gpointer g_class)
@@ -87,8 +90,10 @@ type_base_init (gpointer g_class)
 
         gst_element_class_add_pad_template (element_class, template);
 
+#if 0
         gst_element_class_add_pad_template(element_class,
         gst_static_pad_template_get (&src_factory));
+#endif
     }
 }
 

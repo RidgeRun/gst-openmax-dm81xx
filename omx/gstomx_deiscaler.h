@@ -26,7 +26,7 @@
 
 G_BEGIN_DECLS
 
-// #define GST_OMX_DEISCALER(obj) (GstOmxDeiScaler *) (obj)
+#define GST_OMX_DEISCALER(obj) (struct GstOmxDeiScaler *) (obj)
 // #define GST_OMX_DEISCALER_TYPE (gst_omx_deiscaler_get_type ())
 
 typedef struct GstOmxDeiScaler GstOmxMDeiScaler;
@@ -39,6 +39,7 @@ typedef struct GstOmxDeiScalerClass GstOmxHDeiScalerClass;
 struct GstOmxDeiScaler
 {
     GstOmxBaseVfpc2 omx_base;
+	gint framerate_divisor;
 };
 
 struct GstOmxDeiScalerClass
