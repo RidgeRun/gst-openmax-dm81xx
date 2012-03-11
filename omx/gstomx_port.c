@@ -288,7 +288,11 @@ g_omx_port_free_buffers (GOmxPort *port)
          * OMX component, to avoid freeing a buffer that the component
          * is still accessing:
          */
+		#if 0
         omx_buffer = async_queue_pop_full (port->queue, TRUE, TRUE);
+		#else
+		omx_buffer = port->buffers[i];
+		#endif
 
         if (omx_buffer)
         {
