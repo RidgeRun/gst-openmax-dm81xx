@@ -36,6 +36,9 @@ G_BEGIN_DECLS
 #define GST_OMX_VIDEO_MIXER_TYPE (gst_omx_video_mixer_get_type ())
 #define GST_OMX_VIDEO_MIXER_CLASS(obj) ((GstOmxVideoMixerClass *) (obj))
 #define GST_OMX_VIDEO_MIXER_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), GST_OMX_VIDEO_MIXER_TYPE, GstOmxVideoMixerClass))
+#define GST_IS_OMX_VIDEO_MIXER(obj) \
+        (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_OMX_VIDEO_MIXER_TYPE))
+     
 
 typedef struct GstOmxVideoMixer GstOmxVideoMixer;
 typedef struct GstOmxVideoMixerClass GstOmxVideoMixerClass;
@@ -43,7 +46,7 @@ typedef struct GstOmxVideoMixerClass GstOmxVideoMixerClass;
 #include "gstomx_util.h"
 #include <async_queue.h>
 
-#define NUM_PORTS 4
+#define NUM_PORTS 8
 
 typedef struct ip_params {
      guint idx;
@@ -68,7 +71,7 @@ struct GstOmxVideoMixer
 {
     GstElement element;
 
-    GstPad *sinkpad[NUM_PORTS];
+    GstVideoMixerPad *sinkpad[NUM_PORTS];
     GstPad *srcpad;
 
     GOmxCore *gomx;
@@ -106,6 +109,9 @@ struct GstOmxVideoMixer
 	guint settingsChanged;
 	Olist **orderList;
 	GMutex *loop_lock;
+	guint next_sinkpad;
+	guint numpads;
+	guint outbufsize;
 };
 
 

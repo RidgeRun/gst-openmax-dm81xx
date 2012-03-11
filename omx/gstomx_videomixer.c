@@ -54,7 +54,7 @@ GSTOMX_BOILERPLATE_FULL (GstOmxVideoMixer, gst_omx_video_mixer, GstElement, GST_
 static GstStaticPadTemplate sink_template =
         GST_STATIC_PAD_TEMPLATE ("sink",
                 GST_PAD_SINK,
-                GST_PAD_ALWAYS,
+                GST_PAD_REQUEST,
                 GST_STATIC_CAPS (GST_VIDEO_CAPS_YUV_STRIDED (
                         "{NV12}", "[ 0, max ]"))
         );
@@ -73,6 +73,10 @@ static GstFlowReturn pad_chain (GstPad *pad, GstBuffer *buf);
 static gboolean pad_event (GstPad *pad, GstEvent *event);
 
 static void* vidmix_input_loop(void *arg);
+static GstPad *request_new_pad (GstElement * element,
+    GstPadTemplate * templ, const gchar * name);
+static void release_pad (GstElement * element, GstPad * pad);
+
 static void gst_videomixer_pad_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec);
 static void gst_videomixer_pad_set_property (GObject * object, guint prop_id,
@@ -136,23 +140,23 @@ gst_videomixer_pad_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
   GstVideoMixerPad *pad = GST_VIDEO_MIXER_PAD (object);
-  ip_params *ch_info;
-  ch_info = (ip_params *)gst_pad_get_element_private(pad);
+  //ip_params *ch_info;
+  //ch_info = (ip_params *)gst_pad_get_element_private(pad);
   switch (prop_id) {
     case ARG_OUT_WIDTH:
-      ch_info->outWidth = g_value_get_uint (value);
+      pad->outWidth = g_value_get_uint (value);
       break;
     case ARG_OUT_HEIGHT:
-      ch_info->outHeight = g_value_get_uint (value);
+      pad->outHeight = g_value_get_uint (value);
       break;
     case ARG_OUT_X:
-      ch_info->outX  = g_value_get_uint (value);
+      pad->outX  = g_value_get_uint (value);
       break;
     case ARG_OUT_Y:
-      ch_info->outY  = g_value_get_uint (value);
+      pad->outY  = g_value_get_uint (value);
       break;
     case ARG_OUT_ZORDER:
-      ch_info->order = g_value_get_uint (value);
+      pad->order = g_value_get_uint (value);
 	  break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -183,7 +187,7 @@ setup_input_buffer (GstOmxVideoMixer *self)
 {
     guint ii;
 	GstBuffer *buf;
-	for(ii = 0; ii < NUM_PORTS; ii++) {
+	for(ii = 0; ii < self->numpads; ii++) {
 	   /* if (GST_IS_OMXBUFFERTRANSPORT (buf))*/
 	    {
 	        OMX_PARAM_PORTDEFINITIONTYPE param;
@@ -191,7 +195,7 @@ setup_input_buffer (GstOmxVideoMixer *self)
 	        gint i;
             in_port =  self->in_port[ii];
 	        /* retrieve incoming buffer port information */
-			buf = (GstBuffer *)async_queue_pop_full(self->chInfo[ii].queue,TRUE,FALSE);
+			buf = (GstBuffer *)async_queue_pop_full(self->sinkpad[ii]->queue,TRUE,FALSE);
 	        port = GST_GET_OMXPORT (buf);
 	        /* configure input buffer size to match with upstream buffer */
 	        G_OMX_PORT_GET_DEFINITION (self->in_port[ii], &param);
@@ -211,7 +215,7 @@ setup_input_buffer (GstOmxVideoMixer *self)
 	        /* disable omx_allocate alloc flag, so that we can fall back to shared method */
 	        self->in_port[ii]->omx_allocate = FALSE;
 	        self->in_port[ii]->always_copy = FALSE;
-			async_queue_push (self->chInfo[ii].queue, buf);
+			async_queue_push (self->sinkpad[ii]->queue, buf);
 	    }
 	    /*else
 	    {
@@ -301,28 +305,28 @@ change_state (GstElement *element,
 				guint thread_ret;
 				gpointer obj;
                 /* unlock */
-				
-				for(ii = 0; ii < NUM_PORTS; ii++) {
+				printf("paused to ready!!\n");
+				for(ii = 0; ii < self->numpads; ii++) {
                   g_omx_port_finish (self->in_port[ii]);
                   g_omx_port_finish (self->out_port[ii]);
 				}
-				//printf("setting EOS to true\n");
+				printf("setting EOS to true\n");
 				self->eos = TRUE;
-				for(ii = 0; ii < NUM_PORTS; ii++)
-				  async_queue_disable (self->chInfo[ii].queue);
-                //printf("Waiting for ip thread to exit..semup!!\n");
+				for(ii = 0; ii < self->numpads; ii++)
+				  async_queue_disable (self->sinkpad[ii]->queue);
+                printf("Waiting for ip thread to exit..semup!!\n");
 				g_sem_up(self->bufferSem);
 				pthread_join(self->input_loop, &thread_ret);
 
-			   for(ii = 0; ii < NUM_PORTS; ii++)
-				 while(obj = async_queue_pop_full(self->chInfo[ii].queue, FALSE, TRUE)) { 
-				 //	printf("freeing un-processed buffer in queue - %d\n",ii);
+			   for(ii = 0; ii < self->numpads; ii++)
+				 while(obj = async_queue_pop_full(self->sinkpad[ii]->queue, FALSE, TRUE)) { 
+					printf("freeing un-processed buffer in queue - %d\n",ii);
 					gst_buffer_unref(obj);
 				 }
 				
                 g_omx_core_stop (core);
                 g_omx_core_unload (core);
-				for(ii = 0; ii < NUM_PORTS; ii++)
+				for(ii = 0; ii < self->numpads; ii++)
 				  g_free(self->orderList[ii]);
 
 				g_free(self->orderList);
@@ -335,10 +339,11 @@ change_state (GstElement *element,
                 ret = GST_STATE_CHANGE_FAILURE;
                 goto leave;
             }
+			printf("paused to ready...done!!\n");
             break;
 
         case GST_STATE_CHANGE_READY_TO_NULL:
-			//printf("calling g_omx_core_deinit\n");
+			printf("calling g_omx_core_deinit\n");
             g_omx_core_deinit (core);
             break;
 
@@ -390,20 +395,20 @@ void update_scaler(GstOmxVideoMixer *self)
 		g_mutex_lock(self->loop_lock);
 	    /* Set output channel resolution */
 	    GST_LOG_OBJECT (self, "Setting channel resolution (output)");
-		for(ii = 0;ii < NUM_PORTS ; ii++) {
+		for(ii = 0;ii < self->numpads ; ii++) {
 	    _G_OMX_INIT_PARAM (&chResolution);
-	    chResolution.Frm0Width = self->chInfo[ii].outWidth;
-	    chResolution.Frm0Height = self->chInfo[ii].outHeight;
+	    chResolution.Frm0Width = self->sinkpad[ii]->outWidth;
+	    chResolution.Frm0Height = self->sinkpad[ii]->outHeight;
 	    chResolution.Frm0Pitch = self->out_stride;
 	    chResolution.Frm1Width = 0;
 	    chResolution.Frm1Height = 0;
 	    chResolution.Frm1Pitch = 0;
-	    chResolution.FrmStartX = self->chInfo[ii].outX*2;
-	    chResolution.FrmStartY = self->chInfo[ii].outY;
+	    chResolution.FrmStartX = self->sinkpad[ii]->outX*2;
+	    chResolution.FrmStartY = self->sinkpad[ii]->outY;
 	    chResolution.FrmCropWidth = 0;
 	    chResolution.FrmCropHeight = 0;
 	    chResolution.eDir = OMX_DirOutput;
-		chResolution.nPortIndex = ii;		
+		chResolution.nPortIndex = ii + OMX_VFPC_OUTPUT_PORT_START_INDEX;		
 	    chResolution.nChId = ii;
 		//printf("calling setconfig!!\n");
 	    err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);
@@ -413,19 +418,19 @@ void update_scaler(GstOmxVideoMixer *self)
 	        return;
 	    }
 		self->orderList[ii]->idx = ii;
-		self->orderList[ii]->order = self->chInfo[ii].order;
+		self->orderList[ii]->order = self->sinkpad[ii]->order;
 		}
 
 		
-	for(ii=0;ii<NUM_PORTS;ii++)
-		for(kk=ii+1;kk<NUM_PORTS;kk++)
+	for(ii=0;ii<self->numpads;ii++)
+		for(kk=ii+1;kk<self->numpads;kk++)
 			if(self->orderList[kk]->order < self->orderList[ii]->order) {
                tmp = *(self->orderList[kk]);
 			   *(self->orderList[kk]) = *(self->orderList[ii]);
 			   	*(self->orderList[ii]) = tmp;
 			}
     printf("ip zorder - starting from lowest: %d",self->orderList[0]->idx);
-	for(ii=1;ii<NUM_PORTS;ii++)
+	for(ii=1;ii<self->numpads;ii++)
 		printf(", %d",self->orderList[ii]->idx);
 	printf("\n");
 		g_mutex_unlock(self->loop_lock);
@@ -637,6 +642,11 @@ type_class_init (gpointer g_class,
 
 	/* Register the pad class */
   (void) (GST_TYPE_VIDEO_MIXER_PAD);
+
+  gstelement_class->request_new_pad =
+      GST_DEBUG_FUNCPTR (request_new_pad);
+  gstelement_class->release_pad =
+      GST_DEBUG_FUNCPTR (release_pad);
 }
 
 static GstCaps*
@@ -652,8 +662,8 @@ create_src_caps (GstOmxVideoMixer *omx_base)
      //printf("create src caps!!\n");
     if (gst_caps_is_empty (caps))
     {
-        width = self->chInfo[0].in_width;
-        height = self->chInfo[0].in_height;
+        width = self->sinkpad[0]->in_width;
+        height = self->sinkpad[0]->in_height;
 		//printf("set 1 height:%d, width:%d\n",height,width);
     }
     else
@@ -665,8 +675,8 @@ create_src_caps (GstOmxVideoMixer *omx_base)
         if (!(gst_structure_get_int (s, "width", &width) &&
             gst_structure_get_int (s, "height", &height)))
         {
-            width = self->chInfo[0].in_width;
-            height = self->chInfo[0].in_height;  
+            width = self->sinkpad[0]->in_width;
+            height = self->sinkpad[0]->in_height;  
 			//printf("set 2 height:%d, width:%d\n",height,width);
         }
     }
@@ -717,7 +727,7 @@ scaler_setup (GstOmxVideoMixer *omx_base)
     
     /* Setting Memory type at input port to Raw Memory */
     GST_LOG_OBJECT (self, "Setting input port to Raw memory");
-    for(ii = 0; ii < NUM_PORTS; ii++) {
+    for(ii = 0; ii < self->numpads; ii++) {
 		
 	    _G_OMX_INIT_PARAM (&memTypeCfg);
 	    memTypeCfg.nPortIndex = self->input_port_index[ii];
@@ -742,12 +752,12 @@ scaler_setup (GstOmxVideoMixer *omx_base)
 	    GST_LOG_OBJECT (self, "Setting port definition (input)");
 
 	    G_OMX_PORT_GET_DEFINITION (omx_base->in_port[ii], &paramPort);
-	    paramPort.format.video.nFrameWidth = self->chInfo[ii].in_width;
-	    paramPort.format.video.nFrameHeight = self->chInfo[ii].in_height;
-	    paramPort.format.video.nStride = self->chInfo[ii].in_stride;
+	    paramPort.format.video.nFrameWidth = self->sinkpad[ii]->in_width;
+	    paramPort.format.video.nFrameHeight = self->sinkpad[ii]->in_height;
+	    paramPort.format.video.nStride = self->sinkpad[ii]->in_stride;
 	    paramPort.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
 	    paramPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
-	    paramPort.nBufferSize =  self->chInfo[ii].in_stride * self->chInfo[ii].in_height * 1.5;
+	    paramPort.nBufferSize =  self->sinkpad[ii]->in_stride * self->sinkpad[ii]->in_height * 1.5;
 	    paramPort.nBufferAlignment = 0;
 	    paramPort.bBuffersContiguous = 0;
 	    G_OMX_PORT_SET_DEFINITION (omx_base->in_port[ii], &paramPort);
@@ -774,21 +784,21 @@ scaler_setup (GstOmxVideoMixer *omx_base)
     GST_LOG_OBJECT (self, "Setting number of channels");
 
     _G_OMX_INIT_PARAM (&numChannels);
-    numChannels.nNumChannelsPerHandle = NUM_PORTS;    
+    numChannels.nNumChannelsPerHandle = self->numpads;    
     err = OMX_SetParameter (gomx->omx_handle, 
         (OMX_INDEXTYPE) OMX_TI_IndexParamVFPCNumChPerHandle, &numChannels);
 
     if (err != OMX_ErrorNone)
         return;
 
-    for(ii = 0; ii < NUM_PORTS; ii++) {
+    for(ii = 0; ii < self->numpads; ii++) {
 	    /* Set input channel resolution */
 	    GST_LOG_OBJECT (self, "Setting channel resolution (input)");
 
 	    _G_OMX_INIT_PARAM (&chResolution);
-	    chResolution.Frm0Width = self->chInfo[ii].in_width;
-	    chResolution.Frm0Height = self->chInfo[ii].in_height;
-	    chResolution.Frm0Pitch = self->chInfo[ii].in_stride;
+	    chResolution.Frm0Width = self->sinkpad[ii]->in_width;
+	    chResolution.Frm0Height = self->sinkpad[ii]->in_height;
+	    chResolution.Frm0Pitch = self->sinkpad[ii]->in_stride;
 	    chResolution.Frm1Width = 0;
 	    chResolution.Frm1Height = 0;
 	    chResolution.Frm1Pitch = 0;
@@ -819,17 +829,17 @@ scaler_setup (GstOmxVideoMixer *omx_base)
 	    chResolution.FrmCropWidth = 0;
 	    chResolution.FrmCropHeight = 0;
 	    chResolution.eDir = OMX_DirOutput;
-		chResolution.nPortIndex = ii;		
+		chResolution.nPortIndex = ii + OMX_VFPC_OUTPUT_PORT_START_INDEX;		
 	    chResolution.nChId = ii;
 	    err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);
 
 	    if (err != OMX_ErrorNone)
 	        return;
 
-		self->chInfo[ii].outWidth  = chResolution.Frm0Width; 
-	    self->chInfo[ii].outHeight = chResolution.Frm0Height; 
-	    self->chInfo[ii].outX = arr[ii][0]*self->chInfo[ii].outWidth;
-	    self->chInfo[ii].outY = chResolution.FrmStartY;
+		self->sinkpad[ii]->outWidth  = chResolution.Frm0Width; 
+	    self->sinkpad[ii]->outHeight = chResolution.Frm0Height; 
+	    self->sinkpad[ii]->outX = arr[ii][0]*self->sinkpad[ii]->outWidth;
+	    self->sinkpad[ii]->outY = chResolution.FrmStartY;
 
 	    _G_OMX_INIT_PARAM (&algEnable);
 	    algEnable.nPortIndex = ii;
@@ -858,7 +868,7 @@ omx_setup (GstOmxVideoMixer *omx_base)
     GST_INFO_OBJECT (omx_base, "begin");
     
     /* enable input port */
-	for(ii = 0; ii < NUM_PORTS; ii++) {
+	for(ii = 0; ii < self->numpads; ii++) {
 	    port = omx_base->in_port[ii];
 	    OMX_SendCommand (g_omx_core_get_handle (port->core),
 	            OMX_CommandPortEnable, port->port_index, NULL);
@@ -914,17 +924,17 @@ vidmix_port_recv (GstOmxVideoMixer *self)
     OMX_BUFFERHEADERTYPE *omx_bufferHdr[NUM_PORTS - 1];
 //printf("a\n");
     //while (!ret && port->enabled)
-    for(ii = 0; ii < NUM_PORTS; ii++)
+    for(ii = 0; ii < self->numpads; ii++)
     {
         
 		port = self->out_port[ii];
 		g_return_val_if_fail (port->type == GOMX_PORT_OUTPUT, NULL);
 
-		if((self->chInfo[ii].eos == TRUE) && (self->numEosPending != 0)) {
+		/*if((self->chInfo[ii].eos == TRUE) && (self->numEosPending != 0)) {
 			omx_bufferHdr[ii-1] = NULL;
 			continue;
-		}
-		//printf("Request buffer:%d!!\n",ii);
+		}*/
+	   // printf("Request buffer:%d!!\n",ii);
 		omx_buffer1 = request_buffer (port);
 		//printf("got buffer:%d!!\n",ii);
 
@@ -955,18 +965,21 @@ vidmix_port_recv (GstOmxVideoMixer *self)
             
    buf = gst_omxbuffertransport_new (self->out_port[0], omx_buffer);
             //printf("buffer size:%d\n",GST_BUFFER_SIZE(buf));
-            GST_BUFFER_SIZE(buf) = GST_BUFFER_SIZE(buf)*2;
+            //GST_BUFFER_SIZE(buf) = GST_BUFFER_SIZE(buf)*2;
+            GST_BUFFER_SIZE(buf) = self->outbufsize;
             if (port->core->use_timestamps)
             {
                 /*GST_BUFFER_TIMESTAMP (buf) = gst_util_uint64_scale_int (
                         omx_buffer->nTimeStamp,
                         GST_SECOND, OMX_TICKS_PER_SECOND);*/
+              /*if(self->timestamp == 0)
+			  	self->timestamp = gst_clock_get_time(gst_element_get_clock(self)) - gst_element_get_base_time(self);*/
               GST_BUFFER_TIMESTAMP (buf) = self->timestamp;
 			  GST_BUFFER_DURATION (buf) = self->duration;
 			  self->timestamp += self->duration;
             }
 
-            gst_omxbuffertransport_set_additional_headers (buf ,NUM_PORTS -1,&omx_bufferHdr);
+            gst_omxbuffertransport_set_additional_headers (buf ,self->numpads -1,&omx_bufferHdr);
 			gst_omxbuffertransport_set_bufsem (buf ,self->bufferSem);
             port->n_offset = omx_buffer->nOffset;
 
@@ -1016,8 +1029,8 @@ output_loop (gpointer data)
     {
        
         GstBuffer *buf = GST_BUFFER (obj);
-		/*printf("push : %" 
-                    GST_TIME_FORMAT ", duration: %" GST_TIME_FORMAT"\n",
+		/*printf("push : %p %" 
+                    GST_TIME_FORMAT ", duration: %" GST_TIME_FORMAT"\n",GST_BUFFER_DATA(buf),
                     GST_TIME_ARGS (GST_BUFFER_TIMESTAMP(buf)),
                     GST_TIME_ARGS (GST_BUFFER_DURATION(buf)));*/
         ret = bclass->push_buffer (self, buf);
@@ -1173,11 +1186,12 @@ void
 vidmix_port_allocate_buffers (GstOmxVideoMixer *self)
 {
     OMX_PARAM_PORTDEFINITIONTYPE param;
-    guint i,ii;
+    guint i,ii,iii;
     guint size;
 	GOmxPort *port;
+	guint16 *opbuf;
 
-	for(ii = 0; ii < NUM_PORTS; ii++)  {
+	for(ii = 0; ii < self->numpads; ii++)  {
 
 	    port = self->in_port[ii];
 	    if (port->buffers) {
@@ -1212,7 +1226,7 @@ vidmix_port_allocate_buffers (GstOmxVideoMixer *self)
 	    }
 	}
 
-	for(ii = 0; ii < NUM_PORTS; ii++)  {
+	for(ii = 0; ii < self->numpads; ii++)  {
 
 	    port = self->out_port[ii];
 	    if (port->buffers) {
@@ -1226,7 +1240,7 @@ vidmix_port_allocate_buffers (GstOmxVideoMixer *self)
 		    size = param.nBufferSize;
 
 		    port->buffers = g_new0 (OMX_BUFFERHEADERTYPE *, port->num_buffers);
-
+            self->outbufsize = size;
 		    for (i = 0; i < port->num_buffers; i++)
 		    {
 		        gpointer buffer_data = NULL;
@@ -1243,6 +1257,9 @@ vidmix_port_allocate_buffers (GstOmxVideoMixer *self)
                 //printf("portidx op of buffer ip:%d, op:%d\n",port->buffers[i]->nInputPortIndex,port->buffers[i]->nOutputPortIndex);
                 //port->buffers[i]->nOffset = self->out_width;
 	            g_return_if_fail (port->buffers[i]);
+				opbuf = (guint16*)port->buffers[i]->pBuffer;
+                                for(iii = 0; iii < size/2; iii++)
+                                        opbuf[iii] = 0x8000;
 				//printf("allocated buffer:%p\n",port->buffers[i]->pBuffer);
 		    } 
 			self->bufferSem = g_sem_new_with_value(port->num_buffers);
@@ -1380,13 +1397,13 @@ static void* vidmix_input_loop(void *arg) {
 		afttime = (tv.tv_sec * 1000000 + tv.tv_usec);
 		printf("Wait:%lld\n",(afttime-beftime));*/
 		g_mutex_lock(self->loop_lock);
-        for(kk = 0; kk < NUM_PORTS; kk++) {
+        for(kk = 0; kk < self->numpads; kk++) {
 			ii = self->orderList[kk]->idx;
             port = self->in_port[ii];
 			gomx = port->core;
 			buf = NULL;
-			if(self->chInfo[ii].eos == FALSE) {
-			  buf = (GstBuffer *)async_queue_pop_full(self->chInfo[ii].queue,FALSE,FALSE);
+			/*if(self->chInfo[ii].eos == FALSE)*/ {
+			  buf = (GstBuffer *)async_queue_pop_full(self->sinkpad[ii]->queue,FALSE,FALSE);
 			  if(buf == NULL) {
 
 				if(self->eos == TRUE) {
@@ -1395,29 +1412,29 @@ static void* vidmix_input_loop(void *arg) {
 				}
 			  	
                 //printf("NULL buffer...ip exiting!!\n");
-                //printf("reuse:%d, buffer:%p!!\n",ii,self->chInfo[ii].lastBuf);
+                //printf("reuse:%d, buffer:%p!!\n",ii,self->sinkpad[ii]->lastBuf);
                 //buf = gst_buffer_ref(self->chInfo[ii].lastBuf);
                 //omx_buffer = GST_GET_OMXBUFFER(self->chInfo[ii].lastBuf);
                 g_mutex_lock(port->mutex);
 				//printf("wait:%d,buffer:%p\n",ii,self->chInfo[ii].lastBuf);
-				while(GST_BUFFER_FLAG_IS_SET(self->chInfo[ii].lastBuf,GST_BUFFER_FLAG_BUSY))
+				while(GST_BUFFER_FLAG_IS_SET(self->sinkpad[ii]->lastBuf,GST_BUFFER_FLAG_BUSY))
 					g_cond_wait(port->cond,port->mutex);
 				//printf("wait done:%d\n",ii);
 				g_mutex_unlock(port->mutex);
 
-                buf = (self->chInfo[ii].lastBuf);
+                buf = (self->sinkpad[ii]->lastBuf);
 			  }else {
-                if(self->chInfo[ii].lastBuf) {
-				  gst_buffer_unref(self->chInfo[ii].lastBuf);
+                if(self->sinkpad[ii]->lastBuf) {
+				  gst_buffer_unref(self->sinkpad[ii]->lastBuf);
                 }
-				self->chInfo[ii].lastBuf = buf;
+				self->sinkpad[ii]->lastBuf = buf;
 			  }
 			  	
 			  GST_BUFFER_FLAG_SET(buf,GST_BUFFER_FLAG_BUSY);
 	          sent = g_omx_port_send (port, buf);
 			  g_mutex_lock(port->mutex);
 				//printf("wait:%d,buffer:%p\n",ii,self->chInfo[ii].lastBuf);
-				while(GST_BUFFER_FLAG_IS_SET(self->chInfo[ii].lastBuf,GST_BUFFER_FLAG_BUSY))
+				while(GST_BUFFER_FLAG_IS_SET(self->sinkpad[ii]->lastBuf,GST_BUFFER_FLAG_BUSY))
 					g_cond_wait(port->cond,port->mutex);
 				//printf("wait done:%d\n",ii);
 				g_mutex_unlock(port->mutex);
@@ -1428,9 +1445,9 @@ static void* vidmix_input_loop(void *arg) {
 	
 leave:
 	//printf("leaving ip thread!!\n");
-	for(ii = 0; ii < NUM_PORTS; ii++)
-		if(self->chInfo[ii].lastBuf)
-			gst_buffer_unref(self->chInfo[ii].lastBuf);
+	for(ii = 0; ii < self->numpads; ii++)
+		if(self->sinkpad[ii]->lastBuf)
+			gst_buffer_unref(self->sinkpad[ii]->lastBuf);
 	g_mutex_unlock(self->loop_lock);
 	return NULL;
 	
@@ -1444,9 +1461,7 @@ pad_chain (GstPad *pad,
     GOmxPort *in_port;
     GstOmxVideoMixer *self;
     GstFlowReturn ret = GST_FLOW_OK;
-	gint ii;
-	ip_params *ch_info;
-	ch_info = (ip_params *)gst_pad_get_element_private(pad);
+	GstVideoMixerPad *mixpad ;
     
     self = GST_OMX_VIDEO_MIXER (GST_OBJECT_PARENT (pad));
 	if(self->eos == TRUE) {
@@ -1454,14 +1469,52 @@ pad_chain (GstPad *pad,
 	  return ret;
     }
     PRINT_BUFFER (self, buf);
-    //printf("ip for channel %d\n",ch_info->idx);
+   // printf("ip for channel %d\n",ch_info->idx);
+    mixpad = GST_VIDEO_MIXER_PAD (pad);
     gomx = self->gomx;
 
     GST_LOG_OBJECT (self, "begin: size=%u, state=%d", GST_BUFFER_SIZE (buf), gomx->omx_state);
     g_mutex_lock (self->ready_lock);
 	 if(self->ipCreated == FALSE) {
+	 	        gint ii,kk;
+				Olist tmp;
 
-	 //printf("Starting input thread!!\n");
+	            printf("Starting input thread...num sink pads:%d\n",self->numpads);
+				self->orderList = (guint*)g_malloc(sizeof(guint*)*self->numpads);
+				for(ii = 0; ii < self->numpads; ii++) {
+            	  self->input_port_index[ii] = OMX_VFPC_INPUT_PORT_START_INDEX + ii;
+                  self->output_port_index[ii] = OMX_VFPC_OUTPUT_PORT_START_INDEX + ii;
+                  self->in_port[ii] = g_omx_core_get_port (self->gomx, "in", self->input_port_index[ii]);
+                  self->out_port[ii] = g_omx_core_get_port (self->gomx, "out", self->output_port_index[ii]);
+            	  //self->out_port[ii]->buffer_alloc = buffer_alloc;
+                  self->in_port[ii]->omx_allocate = TRUE;
+                  self->out_port[ii]->omx_allocate = TRUE;
+                  self->in_port[ii]->share_buffer = FALSE;
+                  self->out_port[ii]->share_buffer = FALSE;
+              	  self->in_port[ii]->port_index = self->input_port_index[ii];
+                  self->out_port[ii]->port_index = self->output_port_index[ii];
+
+				  self->orderList[ii] = (guint*)g_malloc(sizeof(Olist));
+		          self->orderList[ii]->idx = self->sinkpad[ii]->idx;
+		          self->orderList[ii]->order = self->sinkpad[ii]->order;
+            	}
+
+                self->numEosPending = self->numpads;
+#if 1
+            	for(ii=0;ii<self->numpads;ii++)
+            		for(kk=ii+1;kk<self->numpads;kk++)
+            			if(self->orderList[kk]->order < self->orderList[ii]->order) {
+                           tmp = *(self->orderList[kk]);
+            			   *(self->orderList[kk]) = *(self->orderList[ii]);
+            			   	*(self->orderList[ii]) = tmp;
+            			}
+            
+            	printf("ip zorder - starting from lowest: %d",self->orderList[0]->idx);
+            	for(ii=1;ii<self->numpads;ii++)
+            		printf(", %d",self->orderList[ii]->idx);
+            	printf("\n");
+#endif					
+
 			    pthread_create(&self->input_loop,NULL,vidmix_input_loop,(void*)self);
 				self->ipCreated = TRUE;
 	 	}
@@ -1469,7 +1522,7 @@ pad_chain (GstPad *pad,
 	//printf("pushing buffer:%p to queue:%p\n",buf,gst_pad_get_element_private(pad));
 
 	//usleep(1000*1000);    
-    async_queue_push (ch_info->queue, buf);
+    async_queue_push (mixpad->queue, buf);
 	//async_queue_push (self->queue[1], gst_buffer_ref(buf));
 	
 leave:
@@ -1512,8 +1565,8 @@ pad_event (GstPad *pad,
     GstOmxVideoMixer *self;
     GOmxCore *gomx;
     gboolean ret = TRUE;
-	ip_params *ch_info;
-	ch_info = (ip_params *)gst_pad_get_element_private(pad);
+	/*ip_params *ch_info;
+	ch_info = (ip_params *)gst_pad_get_element_private(pad);*/
 
     self = GST_OMX_VIDEO_MIXER (GST_OBJECT_PARENT (pad));
     gomx = self->gomx;
@@ -1522,11 +1575,15 @@ pad_event (GstPad *pad,
 
     switch (GST_EVENT_TYPE (event))
     {
-        case GST_EVENT_EOS:
+        case GST_EVENT_EOS: 
+			{
+				GstVideoMixerPad *mixpad ;
+				mixpad = GST_VIDEO_MIXER_PAD (pad);
            // printf ("Recieved EOS event, press <CTRL+C> to terminate pipeline.\n");
             /* if we are init'ed, and there is a running loop; then
              * if we get a buffer to inform it of EOS, let it handle the rest
              * in any other case, we send EOS */
+             printf("eos received on pad:%d\n",mixpad->idx);
 #if 0
             if (self->ready && self->last_pad_push_return == GST_FLOW_OK)
             {
@@ -1550,15 +1607,20 @@ pad_event (GstPad *pad,
 			else
 				gst_event_unref (event);			
 #else
-            if(self->eos == FALSE) {
+            g_mutex_lock (self->ready_lock);
+            self->numEosPending--;
+			g_mutex_unlock (self->ready_lock);
+			if(self->numEosPending == 0)
+            /*if(self->eos == FALSE)*/ {
               self->eos = TRUE;
+			  printf("eos pushed on pad:%d\n",mixpad->idx);
               ret = gst_pad_push_event (self->srcpad, event);
             } else
               gst_event_unref (event);
 
 #endif
 
-
+        	}
             break;
 
         case GST_EVENT_FLUSH_START:
@@ -1623,7 +1685,7 @@ activate_push (GstPad *pad,
             {
               int ii;
                 /** @todo link callback function also needed */
-				for(ii = 0; ii < NUM_PORTS; ii++) {
+				for(ii = 0; ii < self->numpads; ii++) {
                 g_omx_port_resume (self->in_port);
                 g_omx_port_resume (self->out_port);
 				}
@@ -1646,7 +1708,7 @@ activate_push (GstPad *pad,
 #endif
 
             /* unlock loops */
-           for(ii = 0; ii < NUM_PORTS; ii++) {
+           for(ii = 0; ii < self->numpads; ii++) {
             g_omx_port_pause (self->in_port[ii]);
             g_omx_port_pause (self->out_port[ii]);
            }
@@ -1729,18 +1791,18 @@ sink_setcaps (GstPad *pad,
     GstOmxVideoMixer *omx_base;
     GOmxCore *gomx;
     GstVideoFormat format;
+	GstVideoMixerPad *mixpad ;
 	gchar *name;
-    ip_params * ch_info;
+    
     self = GST_OMX_VIDEO_MIXER (GST_PAD_PARENT (pad));
     omx_base = GST_OMX_VIDEO_MIXER (self);
-
+    mixpad = GST_VIDEO_MIXER_PAD (pad);
     gomx = (GOmxCore *) omx_base->gomx;
-    ch_info = (ip_params *)gst_pad_get_element_private(pad);
     GST_INFO_OBJECT (self, "setcaps (sink): %" GST_PTR_FORMAT, caps);
 
-  /* name = gst_caps_to_string(caps);
+   name = gst_caps_to_string(caps);
    printf("In sink set caps:%s\n",name);
-   g_free(name);*/
+   g_free(name);
     g_return_val_if_fail (caps, FALSE);
     g_return_val_if_fail (gst_caps_is_fixed (caps), FALSE);
 
@@ -1749,15 +1811,15 @@ sink_setcaps (GstPad *pad,
     g_return_val_if_fail (structure, FALSE);
 
     if (!gst_video_format_parse_caps_strided (caps,
-            &format, &ch_info->in_width, &ch_info->in_height, &ch_info->in_stride))
+            &format, &mixpad->in_width, &mixpad->in_height, &mixpad->in_stride))
     {
         GST_WARNING_OBJECT (self, "width and/or height is not set in caps");
         return FALSE;
     }
 
-    if (!ch_info->in_stride) 
+    if (!mixpad->in_stride) 
     {
-        ch_info->in_stride = gstomx_calculate_stride (ch_info->in_width, format);
+        mixpad->in_stride = gstomx_calculate_stride (mixpad->in_width, format);
     }
 #if 0
     {
@@ -1780,7 +1842,8 @@ sink_setcaps (GstPad *pad,
 
     if (self->sink_setcaps)
         self->sink_setcaps (pad, caps);
-
+   printf("ip width:%d, ip height: %d, ip stride:%d\n",mixpad->in_width,mixpad->in_height,
+   	mixpad->in_stride);
     return gst_pad_set_caps (pad, caps);
 }
 
@@ -1826,6 +1889,107 @@ src_setcaps (GstPad *pad, GstCaps *caps)
     return TRUE;
 }
 
+static GstPad *request_new_pad (GstElement * element,
+    GstPadTemplate * templ, const gchar * req_name)
+{
+	GstOmxVideoMixer *mix = NULL;
+	GstVideoMixerPad *mixpad = NULL;
+	GstElementClass *klass = GST_ELEMENT_GET_CLASS (element);
+	printf("request pad!!\n");
+	g_return_val_if_fail (templ != NULL, NULL);
+	
+	if (G_UNLIKELY (templ->direction != GST_PAD_SINK)) {
+	  g_warning ("gstomx_videomixer: request pad that is not a SINK pad");
+	  return NULL;
+	}
+	
+	g_return_val_if_fail (GST_IS_OMX_VIDEO_MIXER (element), NULL);
+	
+	mix = GST_OMX_VIDEO_MIXER (element);
+	
+	if (templ == gst_element_class_get_pad_template (klass, "sink")) {
+	  gint serial = 0;
+	  gchar *name = NULL;
+	
+	  //GST_VIDEO_MIXER_STATE_LOCK (mix);
+	  if (req_name == NULL || strlen (req_name) < 6
+		  || !g_str_has_prefix (req_name, "sink_")) {
+		/* no name given when requesting the pad, use next available int */
+		serial = mix->next_sinkpad++;
+	  } else {
+		/* parse serial number from requested padname */
+		serial = atoi (&req_name[5]);
+		if (serial >= mix->next_sinkpad)
+		  mix->next_sinkpad = serial + 1;
+	  }
+	  /* create new pad with the name */
+	  name = g_strdup_printf ("sink_%02d", serial);
+	  printf("creating pad with name:%s\n",name);
+	  mixpad = g_object_new (GST_TYPE_VIDEO_MIXER_PAD, "name", name, "direction",
+		  templ->direction, "template", templ, NULL);
+	  g_free (name);
+
+	  mixpad->idx       = mix->numpads;
+	  mixpad->order     = 0;
+	  mixpad->outX      = 0;
+	  mixpad->outY      = 0;
+	  mixpad->queue     = async_queue_new ();
+	  mixpad->eos       = FALSE;
+	  mixpad->lastBuf   = NULL;
+	  mixpad->outWidth  = 0;
+	  mixpad->outHeight = 0;
+	  mixpad->in_width  = 0;
+	  mixpad->in_height = 0;
+	  mixpad->in_stride = 0;
+	  	
+	  gst_pad_set_chain_function (mixpad,GST_DEBUG_FUNCPTR( pad_chain));
+	  gst_pad_set_event_function (mixpad,GST_DEBUG_FUNCPTR( pad_event));
+	  gst_pad_set_setcaps_function (mixpad,GST_DEBUG_FUNCPTR (sink_setcaps));
+	  printf("Setting sink pad:%d\n",mix->numpads);
+	  mix->sinkpad[mix->numpads] = mixpad;
+	//  GST_VIDEO_MIXER_STATE_UNLOCK (mix);
+	} else {
+	  g_warning ("gstomx_videomixer: this is not our template!");
+	  return NULL;
+	}
+	
+	/* add the pad to the element */
+	gst_element_add_pad (element, GST_PAD (mixpad));
+	mix->numpads++;
+	//gst_child_proxy_child_added (GST_OBJECT (mix), GST_OBJECT (mixpad));
+	printf("request pad done ret!!\n");
+	return GST_PAD (mixpad);
+
+}
+
+static void
+release_pad (GstElement * element, GstPad * pad)
+{
+  GstOmxVideoMixer *mix = NULL;
+  GstVideoMixerPad *mixpad;
+
+  mix = GST_OMX_VIDEO_MIXER (element);
+  //GST_VIDEO_MIXER_STATE_LOCK (mix);
+  /*if (G_UNLIKELY (g_slist_find (mix->sinkpads, pad) == NULL)) {
+    g_warning ("Unknown pad %s", GST_PAD_NAME (pad));
+    goto error;
+  }*/
+
+  mixpad = GST_VIDEO_MIXER_PAD (pad);
+
+  //mix->sinkpads = g_slist_remove (mix->sinkpads, pad);
+  //gst_videomixer_collect_free (mixpad->mixcol);
+  //gst_collect_pads_remove_pad (mix->collect, pad);
+  //gst_child_proxy_child_removed (GST_OBJECT (mix), GST_OBJECT (mixpad));
+  /* determine possibly new geometry and master */
+  //gst_videomixer_set_master_geometry (mix);
+  mix->numpads--;
+  //GST_VIDEO_MIXER_STATE_UNLOCK (mix);
+
+  gst_element_remove_pad (element, pad);
+  return;
+}
+
 
 static void
 type_instance_init (GTypeInstance *instance,
@@ -1834,8 +1998,6 @@ type_instance_init (GTypeInstance *instance,
     GstOmxVideoMixer *self;
     GstElementClass *element_class;
     GstOmxVideoMixerClass *bclass;
-	int ii,kk;
-	Olist tmp;
     GstPadTemplate * templ;
 	GstVideoMixerPad *mixpad;
 	
@@ -1848,74 +2010,11 @@ type_instance_init (GTypeInstance *instance,
     /* GOmx */
     self->gomx = g_omx_core_new (self, g_class);
 
-	for(ii = 0; ii < NUM_PORTS; ii++) {
-	  self->input_port_index[ii] = OMX_VFPC_INPUT_PORT_START_INDEX + ii;
-      self->output_port_index[ii] = OMX_VFPC_OUTPUT_PORT_START_INDEX + ii;
-      self->in_port[ii] = g_omx_core_get_port (self->gomx, "in", self->input_port_index[ii]);
-      self->out_port[ii] = g_omx_core_get_port (self->gomx, "out", self->output_port_index[ii]);
-	  //self->out_port[ii]->buffer_alloc = buffer_alloc;
-      self->in_port[ii]->omx_allocate = TRUE;
-      self->out_port[ii]->omx_allocate = TRUE;
-      self->in_port[ii]->share_buffer = FALSE;
-      self->out_port[ii]->share_buffer = FALSE;
-  	  self->in_port[ii]->port_index = self->input_port_index[ii];
-      self->out_port[ii]->port_index = self->output_port_index[ii];
-	}
-    self->ipCreated = FALSE;
-	self->numEosPending = NUM_PORTS;
+    self->ipCreated = FALSE;	
 	self->eos = FALSE;
     self->ready_lock = g_mutex_new ();
 	self->loop_lock = g_mutex_new ();
 
-	self->orderList = (guint*)g_malloc(sizeof(guint*)*NUM_PORTS);
-	templ = gst_element_class_get_pad_template (element_class, "sink");
-    for(ii = 0; ii < NUM_PORTS; ii++) {
-		gchar *name = g_strdup_printf ("sink_%02d", ii);
-		
-	    /*self->sinkpad[ii] =
-	        gst_pad_new_from_template (gst_element_class_get_pad_template (element_class, "sink"), name);*/
-		self->chInfo[ii].queue = async_queue_new ();
-		self->chInfo[ii].idx   = ii; 
-		self->chInfo[ii].eos   = FALSE;
-		self->chInfo[ii].lastBuf   = NULL;
-		self->chInfo[ii].order   = 0;
-		self->chInfo[ii].outWidth  = 0; 
-	    self->chInfo[ii].outHeight = 0; 
-	    self->chInfo[ii].outX = 0;
-	    self->chInfo[ii].outY = 0;
-        mixpad = g_object_new (GST_TYPE_VIDEO_MIXER_PAD, "name", name, "direction",
-        templ->direction, "template", templ, NULL);
-		g_free(name);
-		self->sinkpad[ii] = (GstPad*)mixpad;
-
-	    gst_pad_set_chain_function (self->sinkpad[ii], bclass->pad_chain);
-	    gst_pad_set_event_function (self->sinkpad[ii], bclass->pad_event);
-
-		self->orderList[ii] = (guint*)g_malloc(sizeof(Olist));
-		self->orderList[ii]->idx = ii;
-		self->orderList[ii]->order = self->chInfo[ii].order;
-        printf("queue_%d : %p\n",ii,self->chInfo[ii].queue); 
-	    gst_pad_set_element_private(self->sinkpad[ii], &(self->chInfo[ii]));
-
-		gst_element_add_pad (GST_ELEMENT (self), self->sinkpad[ii]);
-
-		gst_pad_set_setcaps_function (self->sinkpad[ii],
-	            GST_DEBUG_FUNCPTR (sink_setcaps));
-    }
-#if 1
-	for(ii=0;ii<NUM_PORTS;ii++)
-		for(kk=ii+1;kk<NUM_PORTS;kk++)
-			if(self->orderList[kk]->order < self->orderList[ii]->order) {
-               tmp = *(self->orderList[kk]);
-			   *(self->orderList[kk]) = *(self->orderList[ii]);
-			   	*(self->orderList[ii]) = tmp;
-			}
-
-	printf("ip zorder - starting from lowest: %d",self->orderList[0]->idx);
-	for(ii=1;ii<NUM_PORTS;ii++)
-		printf(", %d",self->orderList[ii]->idx);
-	printf("\n");
-#endif	
     self->srcpad =
         gst_pad_new_from_template (gst_element_class_get_pad_template (element_class, "src"), "src");
 
@@ -1931,6 +2030,9 @@ type_instance_init (GTypeInstance *instance,
 	self->framerate_num = 15;
     self->framerate_denom = 1;
 	self->timestamp = 0;
+	self->next_sinkpad = 0;
+	self->numpads = 0;
+	self->outbufsize = 0;
 	/*printf("duration:%lld, in time : %" 
                     GST_TIME_FORMAT "\n",self->duration,GST_TIME_ARGS(self->duration));
     printf("In instance init/...done!!\n");*/
