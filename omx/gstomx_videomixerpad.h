@@ -52,10 +52,10 @@ struct _GstVideoMixerPad
   gboolean eos;
   GstBuffer *lastBuf;
   guint order;
-  guint outWidth;
-  guint outHeight;
-  guint outX;
-  guint outY;
+  gint outWidth;
+  gint outHeight;
+  gint outX;
+  gint outY;
 };
 
 struct _GstVideoMixerPadClass

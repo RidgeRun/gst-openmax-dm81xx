@@ -724,7 +724,22 @@ scaler_setup (GstOmxVideoMixer *omx_base)
    // printf("scaler setup!!|n");
     /* set the output cap */
     gst_pad_set_caps (omx_base->srcpad, create_src_caps (omx_base));
-    
+    for(ii = 0; ii < self->numpads; ii++) {
+		if(self->sinkpad[ii]->outWidth == -1)
+			self->sinkpad[ii]->outWidth = self->out_width/2;
+
+		if(self->sinkpad[ii]->outHeight == -1)
+			self->sinkpad[ii]->outHeight = self->out_height/2;
+
+    }
+	for(ii = 0; ii < self->numpads; ii++) {
+		if(self->sinkpad[ii]->outX == -1)
+			self->sinkpad[ii]->outX = arr[ii][0]*(self->out_width)/2;
+
+		if(self->sinkpad[ii]->outY == -1)
+			self->sinkpad[ii]->outY = arr[ii][1]*self->out_height/2;
+
+    }
     /* Setting Memory type at input port to Raw Memory */
     GST_LOG_OBJECT (self, "Setting input port to Raw memory");
     for(ii = 0; ii < self->numpads; ii++) {
@@ -818,14 +833,14 @@ scaler_setup (GstOmxVideoMixer *omx_base)
 	    GST_LOG_OBJECT (self, "Setting channel resolution (output)");
 	    _G_OMX_INIT_PARAM (&chResolution);
 		
-		chResolution.Frm0Width = self->out_width/2;
-		chResolution.Frm0Height = self->out_height/2;
+		chResolution.Frm0Width = self->sinkpad[ii]->outWidth;//self->out_width/2;
+		chResolution.Frm0Height = self->sinkpad[ii]->outHeight;//self->out_height/2;
 	    chResolution.Frm0Pitch = self->out_stride;
 	    chResolution.Frm1Width = 0;
 	    chResolution.Frm1Height = 0;
 	    chResolution.Frm1Pitch = 0;
-	    chResolution.FrmStartX = arr[ii][0]*(chResolution.Frm0Width*2);
-	    chResolution.FrmStartY = arr[ii][1]*chResolution.Frm0Height;
+	    chResolution.FrmStartX = self->sinkpad[ii]->outX*2;//arr[ii][0]*(chResolution.Frm0Width*2);
+	    chResolution.FrmStartY = self->sinkpad[ii]->outY;//arr[ii][1]*chResolution.Frm0Height;
 	    chResolution.FrmCropWidth = 0;
 	    chResolution.FrmCropHeight = 0;
 	    chResolution.eDir = OMX_DirOutput;
@@ -836,10 +851,10 @@ scaler_setup (GstOmxVideoMixer *omx_base)
 	    if (err != OMX_ErrorNone)
 	        return;
 
-		self->sinkpad[ii]->outWidth  = chResolution.Frm0Width; 
-	    self->sinkpad[ii]->outHeight = chResolution.Frm0Height; 
-	    self->sinkpad[ii]->outX = arr[ii][0]*self->sinkpad[ii]->outWidth;
-	    self->sinkpad[ii]->outY = chResolution.FrmStartY;
+		//self->sinkpad[ii]->outWidth  = chResolution.Frm0Width; 
+	    //self->sinkpad[ii]->outHeight = chResolution.Frm0Height; 
+	    //self->sinkpad[ii]->outX = arr[ii][0]*self->sinkpad[ii]->outWidth;
+	    //self->sinkpad[ii]->outY = chResolution.FrmStartY;
 
 	    _G_OMX_INIT_PARAM (&algEnable);
 	    algEnable.nPortIndex = ii;
@@ -1565,6 +1580,7 @@ pad_event (GstPad *pad,
     GstOmxVideoMixer *self;
     GOmxCore *gomx;
     gboolean ret = TRUE;
+	static int ii = 0;
 	/*ip_params *ch_info;
 	ch_info = (ip_params *)gst_pad_get_element_private(pad);*/
 
@@ -1647,7 +1663,11 @@ pad_event (GstPad *pad,
             break;
 
         case GST_EVENT_NEWSEGMENT:
+			if(ii == 0) {
             ret = gst_pad_push_event (self->srcpad, event);
+			ii = 1;
+				} else
+				gst_event_unref(event);
             break;
 		 case GST_EVENT_CROP:
             gst_event_unref(event);
@@ -1931,13 +1951,13 @@ static GstPad *request_new_pad (GstElement * element,
 
 	  mixpad->idx       = mix->numpads;
 	  mixpad->order     = 0;
-	  mixpad->outX      = 0;
-	  mixpad->outY      = 0;
+	  mixpad->outX      = -1;
+	  mixpad->outY      = -1;
 	  mixpad->queue     = async_queue_new ();
 	  mixpad->eos       = FALSE;
 	  mixpad->lastBuf   = NULL;
-	  mixpad->outWidth  = 0;
-	  mixpad->outHeight = 0;
+	  mixpad->outWidth  = -1;
+	  mixpad->outHeight = -1;
 	  mixpad->in_width  = 0;
 	  mixpad->in_height = 0;
 	  mixpad->in_stride = 0;
@@ -1956,7 +1976,7 @@ static GstPad *request_new_pad (GstElement * element,
 	/* add the pad to the element */
 	gst_element_add_pad (element, GST_PAD (mixpad));
 	mix->numpads++;
-	//gst_child_proxy_child_added (GST_OBJECT (mix), GST_OBJECT (mixpad));
+	gst_child_proxy_child_added (GST_OBJECT (mix), GST_OBJECT (mixpad));
 	printf("request pad done ret!!\n");
 	return GST_PAD (mixpad);
 
@@ -1980,7 +2000,7 @@ release_pad (GstElement * element, GstPad * pad)
   //mix->sinkpads = g_slist_remove (mix->sinkpads, pad);
   //gst_videomixer_collect_free (mixpad->mixcol);
   //gst_collect_pads_remove_pad (mix->collect, pad);
-  //gst_child_proxy_child_removed (GST_OBJECT (mix), GST_OBJECT (mixpad));
+  gst_child_proxy_child_removed (GST_OBJECT (mix), GST_OBJECT (mixpad));
   /* determine possibly new geometry and master */
   //gst_videomixer_set_master_geometry (mix);
   mix->numpads--;
@@ -2039,42 +2059,57 @@ type_instance_init (GTypeInstance *instance,
     GST_LOG_OBJECT (self, "end");
 }
 
-static void
-omx_interface_init (GstImplementsInterfaceClass *klass)
+static GstObject *
+gst_omx_videomixer_child_proxy_get_child_by_index (GstChildProxy * child_proxy,
+    guint index)
 {
+  GstOmxVideoMixer *mix = GST_OMX_VIDEO_MIXER (child_proxy);
+  GstObject *obj;
+
+  //GST_VIDEO_MIXER_STATE_LOCK (mix);
+  //printf("index requested:%d\n",index);
+  obj = mix->sinkpad[index];
+  if (obj)
+    gst_object_ref (obj);
+  //GST_VIDEO_MIXER_STATE_UNLOCK (mix);
+  return obj;
 }
 
-static gboolean
-interface_supported (GstImplementsInterface *iface,
-                     GType type)
+static guint
+gst_omx_videomixer_child_proxy_get_children_count (GstChildProxy * child_proxy)
 {
-    g_assert (type == GST_TYPE_OMX);
-    return TRUE;
+  guint count = 0;
+  GstOmxVideoMixer *mix = GST_OMX_VIDEO_MIXER (child_proxy);
+
+  //GST_VIDEO_MIXER_STATE_LOCK (mix);
+  count = mix->numpads;
+  //GST_VIDEO_MIXER_STATE_UNLOCK (mix);
+  GST_INFO_OBJECT (mix, "Children Count: %d", count);
+  return count;
 }
 
 static void
-interface_init (GstImplementsInterfaceClass *klass)
+gst_omx_videomixer_child_proxy_init (gpointer g_iface, gpointer iface_data)
 {
-    klass->supported = interface_supported;
+  GstChildProxyInterface *iface = g_iface;
+
+  GST_INFO ("intializing child proxy interface");
+  iface->get_child_by_index = gst_omx_videomixer_child_proxy_get_child_by_index;
+  iface->get_children_count = gst_omx_videomixer_child_proxy_get_children_count;
 }
 
+
 static void
-init_interfaces (GType type)
+init_interfaces (GType object_type)
 {
-    GInterfaceInfo *iface_info;
-    GInterfaceInfo *omx_info;
+ static const GInterfaceInfo child_proxy_info = {
+    (GInterfaceInitFunc) gst_omx_videomixer_child_proxy_init,
+    NULL,
+    NULL
+  };
 
-
-    iface_info = g_new0 (GInterfaceInfo, 1);
-    iface_info->interface_init = (GInterfaceInitFunc) interface_init;
-
-    g_type_add_interface_static (type, GST_TYPE_IMPLEMENTS_INTERFACE, iface_info);
-    g_free (iface_info);
-
-    omx_info = g_new0 (GInterfaceInfo, 1);
-    omx_info->interface_init = (GInterfaceInitFunc) omx_interface_init;
-
-    g_type_add_interface_static (type, GST_TYPE_OMX, omx_info);
-    g_free (omx_info);
+  g_type_add_interface_static (object_type, GST_TYPE_CHILD_PROXY,
+      &child_proxy_info);
+  GST_INFO ("GstChildProxy interface registered");
 }
 
