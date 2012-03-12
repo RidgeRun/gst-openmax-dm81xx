@@ -328,10 +328,12 @@ gst_omx_buffer_alloc_change_state (GstElement *element,
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             break;
         case GST_STATE_CHANGE_READY_TO_NULL:
-			for(ii = 0; ii < filter->out_port.num_buffers; ii++) {
-    			Memory_free(filter->heap,filter->out_port.buffers[ii]->pBuffer,filter->allocSize);
+			if(filter->out_port.buffers) {
+			  for(ii = 0; ii < filter->out_port.num_buffers; ii++) {
+    			  Memory_free(filter->heap,filter->out_port.buffers[ii]->pBuffer,filter->allocSize);
+			  }
+			  g_free(filter->out_port.buffers);
 			}
-			g_free(filter->out_port.buffers);
 			OMX_Deinit();
             break;
 
