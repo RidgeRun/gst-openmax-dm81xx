@@ -21,7 +21,10 @@
 
 #include "gstomx_deiscaler.h"
 #include "gstomx.h"
+#include "gstomx_buffertransport.h"
 
+/* Define this for local framerate divisor implementation */
+#define LOCAL_FRAMERATE_DIV_IMPLEMENTATION 1
 
 GSTOMX_BOILERPLATE (GstOmxMDeiScaler, gst_omx_mdeiscaler, GstOmxBaseVfpc2, GST_OMX_BASE_VFPC2_TYPE);
 GSTOMX_BOILERPLATE (GstOmxHDeiScaler, gst_omx_hdeiscaler, GstOmxBaseVfpc2, GST_OMX_BASE_VFPC2_TYPE);
@@ -290,15 +293,17 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     if (err != OMX_ErrorNone)
         return;
 
-#if 1
 	_G_OMX_INIT_PARAM(&sSubSamplinginfo);
+#ifdef LOCAL_FRAMERATE_DIV_IMPLEMENTATION
+	sSubSamplinginfo.nSubSamplingFactor = 1;
+#else
 	sSubSamplinginfo.nSubSamplingFactor = (GST_OMX_DEISCALER(self))->framerate_divisor;
+#endif
 	err = OMX_SetConfig ( gomx->omx_handle, ( OMX_INDEXTYPE )
 			( OMX_TI_IndexConfigSubSamplingFactor ),
 			&sSubSamplinginfo );
 	if (err != OMX_ErrorNone)
 		return;
-#endif
 
     /* Set output channel resolution */
     GST_LOG_OBJECT (self, "Setting channel resolution (output)");
@@ -388,16 +393,40 @@ type_class_init (gpointer g_class,
 				1, 60, 1, G_PARAM_READWRITE));
 }
 
+static gboolean push_cb (GstOmxBaseFilter2 *self, GstBuffer *buf)
+{
+	int i;
+	gboolean ret;
+	for (i = 0; i< NUM_OUTPUTS; i++) {
+		if (GST_GET_OMXPORT(buf) == self->out_port[i]) {
+			break;
+		}
+	}
+	ret = ((GST_OMX_DEISCALER(self))->framecnt[i] == 0);
+	(GST_OMX_DEISCALER(self))->framecnt[i]++;
+	if ((GST_OMX_DEISCALER(self))->framecnt[i] ==
+	    (GST_OMX_DEISCALER(self))->framerate_divisor)
+		(GST_OMX_DEISCALER(self))->framecnt[i] = 0;
+	return ret;
+}
+
 static void
 type_instance_init (GTypeInstance *instance,
                     gpointer g_class)
 {
     GstOmxBaseVfpc2 *self;
+	GstOmxBaseFilter2 *base_filter;
+	int i;
 
     self = GST_OMX_BASE_VFPC2 (instance);
+    base_filter = GST_OMX_BASE_FILTER2 (instance);
 
     self->omx_setup = omx_setup;
+#ifdef LOCAL_FRAMERATE_DIV_IMPLEMENTATION
+	base_filter->push_cb = push_cb;
+#endif
 
 	(GST_OMX_DEISCALER(instance))->framerate_divisor = 1;
+	for (i=0; i<NUM_OUTPUTS; i++) (GST_OMX_DEISCALER(instance))->framecnt[i] = 0;
 }
 

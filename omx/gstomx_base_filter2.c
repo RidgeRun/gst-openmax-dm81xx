@@ -466,8 +466,9 @@ push_buffer (GstOmxBaseFilter2 *self,
 	}
 
     PRINT_BUFFER (self, buf);
-    if (self->push_cb)
-        self->push_cb (self, buf);
+    if (self->push_cb) {
+        if (FALSE == self->push_cb (self, buf)) { gst_buffer_unref(buf); return GST_FLOW_OK; }
+	}
 
 	/** @todo check if tainted */
 	GST_LOG_OBJECT (self, "begin");

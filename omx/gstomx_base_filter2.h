@@ -34,7 +34,7 @@ G_BEGIN_DECLS
 typedef struct GstOmxBaseFilter2 GstOmxBaseFilter2;
 typedef struct GstOmxBaseFilter2Class GstOmxBaseFilter2Class;
 typedef void (*GstOmxBaseFilter2Cb) (GstOmxBaseFilter2 *self);
-typedef void (*GstOmxBaseFilter2PushCb) (GstOmxBaseFilter2 *self, GstBuffer *buf);
+typedef gboolean (*GstOmxBaseFilter2PushCb) (GstOmxBaseFilter2 *self, GstBuffer *buf);
 
 #include "gstomx_util.h"
 #include <async_queue.h>
