@@ -98,7 +98,7 @@ setup_input_buffer (GstOmxBaseFilter2 *self, GstBuffer *buf)
 {
     if (GST_IS_OMXBUFFERTRANSPORT (buf))
     {
-        OMX_PARAM_PORTDEFINITIONTYPE param, peer_param;
+        OMX_PARAM_PORTDEFINITIONTYPE param;
         GOmxPort *port, *in_port;
         gint i, shift = 0;
 
@@ -107,21 +107,17 @@ setup_input_buffer (GstOmxBaseFilter2 *self, GstBuffer *buf)
 
         /* configure input buffer size to match with upstream buffer */
         G_OMX_PORT_GET_DEFINITION (self->in_port, &param);
-        G_OMX_PORT_GET_DEFINITION (port, &peer_param);
 
 		printf("this input  params: %dx%d,%d %d %d\n", param.format.video.nFrameWidth, 
 			param.format.video.nFrameHeight, 
 			param.format.video.nStride,
 			param.nBufferSize, param.nBufferCountActual);
-		printf("peer output params: %dx%d,%d %d %d\n", peer_param.format.video.nFrameWidth, 
-			peer_param.format.video.nFrameHeight, 
-			peer_param.format.video.nStride,
-			peer_param.nBufferSize, peer_param.nBufferCountActual);
-		printf("incoming buffer: nFilledLen: %d, nOffset: %d nFlags: %x\n", 
-			GST_GET_OMXBUFFER(buf)->nFilledLen, 
-			GST_GET_OMXBUFFER(buf)->nOffset, 
-			GST_GET_OMXBUFFER(buf)->nFlags);
-
+		if (GST_GET_OMXBUFFER(buf)) {
+			printf("incoming buffer: nFilledLen: %d, nOffset: %d nFlags: %x\n", 
+					GST_GET_OMXBUFFER(buf)->nFilledLen, 
+					GST_GET_OMXBUFFER(buf)->nOffset, 
+					GST_GET_OMXBUFFER(buf)->nFlags);
+		}
         param.nBufferSize =  GST_BUFFER_SIZE (buf);
 		if (self->input_fields_separately) param.nBufferCountActual = port->num_buffers * 2;
         else param.nBufferCountActual = port->num_buffers;
