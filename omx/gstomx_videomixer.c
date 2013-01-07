@@ -819,8 +819,8 @@ scaler_setup (GstOmxVideoMixer *omx_base)
 	    chResolution.Frm1Pitch = 0;
 	    chResolution.FrmStartX = self->left;
 	    chResolution.FrmStartY = self->top;
-	    chResolution.FrmCropWidth = 0;
-	    chResolution.FrmCropHeight = 0;
+	    chResolution.FrmCropWidth = chResolution.Frm0Width;//0;
+	    chResolution.FrmCropHeight = chResolution.Frm0Height;//0;
 	    chResolution.eDir = OMX_DirInput;
 		chResolution.nPortIndex = ii;
 	    chResolution.nChId = ii;
