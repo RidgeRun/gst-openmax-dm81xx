@@ -45,7 +45,11 @@ enum
 	ARG_OUT_HEIGHT,
 	ARG_OUT_X,
 	ARG_OUT_Y,
-	ARG_OUT_ZORDER
+	ARG_OUT_ZORDER,
+	ARG_IN_X,
+	ARG_IN_Y,
+	ARG_CROP_WIDTH,
+	ARG_CROP_HEIGHT
 };
 
 static void init_interfaces (GType type);
@@ -119,6 +123,26 @@ gst_videomixer_pad_class_init (GstVideoMixerPadClass * klass)
       g_param_spec_uint ("zorder", "Z-Order", "Z Order of the picture",
           0, 10000, 0,
           G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class, ARG_CROP_WIDTH,
+                                         g_param_spec_uint ("cropWidth", "crop width",
+                                                            "crop width",
+                                                            0, 100000, 0, G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class, ARG_CROP_HEIGHT,
+                                         g_param_spec_uint ("cropHeight", "crop height",
+                                                            "crop height",
+                                                            0, 100000, 0, G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class, ARG_IN_X,
+                                         g_param_spec_uint ("inX", "Input X",
+                                                            "ip X",
+                                                            0, 100000, 0, G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class, ARG_IN_Y,
+                                         g_param_spec_uint ("inY", "INput Y",
+                                                            "ip Y",
+                                                            0, 100000, 0, G_PARAM_WRITABLE));
   
 }
 
@@ -157,6 +181,18 @@ gst_videomixer_pad_set_property (GObject * object, guint prop_id,
       break;
     case ARG_OUT_ZORDER:
       pad->order = g_value_get_uint (value);
+	  break;
+	case ARG_CROP_WIDTH:
+	  pad->cropWidth = g_value_get_uint (value);
+	  break;
+	case ARG_CROP_HEIGHT:
+	  pad->cropHeight = g_value_get_uint (value);
+	  break;
+	case ARG_IN_X:
+	  pad->inX = g_value_get_uint (value);
+	  break;
+	case ARG_IN_Y:
+	  pad->inY = g_value_get_uint (value);
 	  break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -419,6 +455,28 @@ void update_scaler(GstOmxVideoMixer *self)
 	    }
 		self->orderList[ii]->idx = ii;
 		self->orderList[ii]->order = self->sinkpad[ii]->order;
+        printf("updating crop : %d,%d ... %dx%d\n",self->sinkpad[ii]->inX,self->sinkpad[ii]->inY,
+						self->sinkpad[ii]->cropWidth,self->sinkpad[ii]->cropHeight);
+		_G_OMX_INIT_PARAM (&chResolution);
+	    chResolution.Frm0Width = self->sinkpad[ii]->in_width;
+	    chResolution.Frm0Height = self->sinkpad[ii]->in_height;
+	    chResolution.Frm0Pitch = self->sinkpad[ii]->in_stride;
+	    chResolution.Frm1Width = 0;
+	    chResolution.Frm1Height = 0;
+	    chResolution.Frm1Pitch = 0;
+	    chResolution.FrmStartX = self->sinkpad[ii]->inX;//chResolution.Frm0Width/2;//self->left;
+	    chResolution.FrmStartY = self->sinkpad[ii]->inY;//chResolution.Frm0Height/2;//self->top;
+	    chResolution.FrmCropWidth = self->sinkpad[ii]->cropWidth;//0;
+	    chResolution.FrmCropHeight = self->sinkpad[ii]->cropHeight;//0;
+	    chResolution.eDir = OMX_DirInput;
+		chResolution.nPortIndex = ii;
+	    chResolution.nChId = ii;
+	    err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);
+
+	    if (err != OMX_ErrorNone){
+			printf("error setting param1!!\n");
+	        return;
+	    }
 		}
 
 		
@@ -429,10 +487,10 @@ void update_scaler(GstOmxVideoMixer *self)
 			   *(self->orderList[kk]) = *(self->orderList[ii]);
 			   	*(self->orderList[ii]) = tmp;
 			}
-    printf("ip zorder - starting from lowest: %d",self->orderList[0]->idx);
+    /*printf("ip zorder - starting from lowest: %d",self->orderList[0]->idx);
 	for(ii=1;ii<self->numpads;ii++)
 		printf(", %d",self->orderList[ii]->idx);
-	printf("\n");
+	printf("\n");*/
 		g_mutex_unlock(self->loop_lock);
 		//printf("Ret!!\n");
 		
@@ -491,7 +549,7 @@ set_property (GObject *obj,
 		case ARG_SETTINGS_CHANGED:
 			self->settingsChanged = g_value_get_boolean (value);
 			update_scaler(self);
-			printf("settings updated!!\n");
+			//printf("settings updated!!\n");
 		break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -740,6 +798,14 @@ scaler_setup (GstOmxVideoMixer *omx_base)
 			self->sinkpad[ii]->outY = arr[ii][1]*self->out_height/2;
 
     }
+
+    for(ii = 0; ii < self->numpads; ii++) {
+        if(self->sinkpad[ii]->cropWidth == -1)
+			self->sinkpad[ii]->cropWidth = self->sinkpad[ii]->in_width;
+
+		if(self->sinkpad[ii]->cropHeight == -1)
+			self->sinkpad[ii]->cropHeight = self->sinkpad[ii]->in_height;
+    }
     /* Setting Memory type at input port to Raw Memory */
     GST_LOG_OBJECT (self, "Setting input port to Raw memory");
     for(ii = 0; ii < self->numpads; ii++) {
@@ -817,10 +883,10 @@ scaler_setup (GstOmxVideoMixer *omx_base)
 	    chResolution.Frm1Width = 0;
 	    chResolution.Frm1Height = 0;
 	    chResolution.Frm1Pitch = 0;
-	    chResolution.FrmStartX = self->left;
-	    chResolution.FrmStartY = self->top;
-	    chResolution.FrmCropWidth = chResolution.Frm0Width;//0;
-	    chResolution.FrmCropHeight = chResolution.Frm0Height;//0;
+	    chResolution.FrmStartX = self->sinkpad[ii]->inX;//chResolution.Frm0Width/2;//self->left;
+	    chResolution.FrmStartY = self->sinkpad[ii]->inY;//chResolution.Frm0Height/2;//self->top;
+	    chResolution.FrmCropWidth = self->sinkpad[ii]->cropWidth;//0;
+	    chResolution.FrmCropHeight = self->sinkpad[ii]->cropHeight;//0;
 	    chResolution.eDir = OMX_DirInput;
 		chResolution.nPortIndex = ii;
 	    chResolution.nChId = ii;
@@ -1961,6 +2027,10 @@ static GstPad *request_new_pad (GstElement * element,
 	  mixpad->in_width  = 0;
 	  mixpad->in_height = 0;
 	  mixpad->in_stride = 0;
+	  mixpad->inX       = 0;
+	  mixpad->inY       = 0;
+	  mixpad->cropWidth = -1;
+	  mixpad->cropHeight = -1;
 	  	
 	  gst_pad_set_chain_function (mixpad,GST_DEBUG_FUNCPTR( pad_chain));
 	  gst_pad_set_event_function (mixpad,GST_DEBUG_FUNCPTR( pad_event));

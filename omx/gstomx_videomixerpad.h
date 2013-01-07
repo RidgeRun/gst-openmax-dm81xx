@@ -56,6 +56,10 @@ struct _GstVideoMixerPad
   gint outHeight;
   gint outX;
   gint outY;
+  gint inX;
+  gint inY;
+  gint cropWidth;
+  gint cropHeight;
 };
 
 struct _GstVideoMixerPadClass
