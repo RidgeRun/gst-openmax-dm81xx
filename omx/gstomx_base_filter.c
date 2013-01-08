@@ -895,7 +895,7 @@ type_instance_init (GTypeInstance *instance,
     gst_element_add_pad (GST_ELEMENT (self), self->sinkpad);
     gst_element_add_pad (GST_ELEMENT (self), self->srcpad);
 
-	self->isFlushed = FALSE;
+	self->isFlushed = TRUE;
     self->filterType = FILTER_NONE;
     self->duration = GST_CLOCK_TIME_NONE;
 

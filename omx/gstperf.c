@@ -286,7 +286,7 @@ print_cpu_load (Gstperf *perf)
     g_print ("\tarm-load: %d", load);
     return 0;
 }
-
+#if 1
 static GstFlowReturn
 gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 {
@@ -317,4 +317,26 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 
     return GST_FLOW_OK;;
 }
+#else
+static GstFlowReturn
+gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
+{
+    Gstperf *self = GST_PERF (trans);
+    GstClockTime ts;
+
+    {
+        ts = gst_util_get_timestamp ();
+        
+
+            printf("%s:BUffer ts %"
+              GST_TIME_FORMAT ", arrived : %"
+              GST_TIME_FORMAT "\n",GST_OBJECT_NAME(self),GST_TIME_ARGS (GST_BUFFER_TIMESTAMP(buf)),GST_TIME_ARGS (ts));
+            self->interval_ts = ts;
+        
+    }
+
+    return GST_FLOW_OK;;
+}
+
+#endif
 

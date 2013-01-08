@@ -26,6 +26,7 @@
 #include <OMX_TI_Index.h>
 
 #include <string.h> /* for memset */
+#include <sched.h>
 
 enum
 {
@@ -106,10 +107,22 @@ type_base_init (gpointer g_class)
 
     bfilter_class->pad_event = pad_event;
 }
-
+#include <sched.h>
 static GstFlowReturn
 push_buffer (GstOmxBaseFilter *omx_base, GstBuffer *buf)
 {
+   GstOmxBaseVfpc *self;	
+   self = GST_OMX_BASE_VFPC (omx_base);
+   if(self->firstTime == TRUE)
+   	{
+   	  pthread_attr_t         attr;
+	  struct sched_param     schedParam;
+	  schedParam.sched_priority = 28;
+		   if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
+				printf("Error setting scheduler\n");
+		   }
+      self->firstTime = FALSE;
+   	}
     return parent_class->push_buffer (omx_base, buf);
 }
 
@@ -172,11 +185,11 @@ sink_setcaps (GstPad *pad,
             self->framerate_num = gst_value_get_fraction_numerator (framerate);
             self->framerate_denom = gst_value_get_fraction_denominator (framerate);
 
-            omx_base->duration = gst_util_uint64_scale_int(GST_SECOND,
+            /*omx_base->duration = gst_util_uint64_scale_int(GST_SECOND,
                     gst_value_get_fraction_denominator (framerate),
                     gst_value_get_fraction_numerator (framerate));
             GST_DEBUG_OBJECT (self, "Nominal frame duration =%"GST_TIME_FORMAT,
-                                GST_TIME_ARGS (omx_base->duration));
+                                GST_TIME_ARGS (omx_base->duration));*/
         }
     }
 	/* check for pixel-aspect-ratio, to set to src caps */
@@ -287,6 +300,8 @@ omx_setup (GstOmxBaseFilter *omx_base)
     GstOmxBaseVfpc *self;
     GOmxCore *gomx;
     GOmxPort *port;
+	pthread_attr_t         attr;
+	struct sched_param     schedParam;
 
     self = GST_OMX_BASE_VFPC (omx_base);
     gomx = (GOmxCore *) omx_base->gomx;
@@ -312,6 +327,11 @@ omx_setup (GstOmxBaseFilter *omx_base)
 
     /* indicate that port is now configured */
     self->port_configured = TRUE;
+    printf("Setting RT priority!!\n");
+	schedParam.sched_priority = 26;
+    if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
+		 printf("Error setting scheduler\n");
+	}
 
     GST_INFO_OBJECT (omx_base, "end");
 }
@@ -349,7 +369,7 @@ type_instance_init (GTypeInstance *instance,
 
     omx_base->omx_setup = omx_setup;
     self->g_class = g_class;
-
+    self->firstTime = TRUE;
     gst_pad_set_setcaps_function (omx_base->sinkpad,
             GST_DEBUG_FUNCPTR (sink_setcaps));
     gst_pad_set_setcaps_function (omx_base->srcpad,

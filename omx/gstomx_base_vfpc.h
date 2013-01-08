@@ -56,6 +56,7 @@ struct GstOmxBaseVfpc
 	gint pixel_aspect_ratio_num;
 	gint pixel_aspect_ratio_denom;
 	gboolean interlaced;
+	gboolean firstTime;
 };
 
 struct GstOmxBaseVfpcClass

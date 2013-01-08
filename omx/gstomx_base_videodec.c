@@ -151,8 +151,11 @@ sink_setcaps (GstPad *pad,
     {
         GST_WARNING_OBJECT (self, "width and/or height not set in caps: %dx%d",
                 width, height);
-        return FALSE;
+		width = 1920;
+		height=1080;
+        //return FALSE;
     }
+	printf("Resolution:%dx%d\n",width,height);
     {
         const GValue *framerate = NULL;
         framerate = gst_structure_get_value (structure, "framerate");
@@ -438,12 +441,14 @@ src_query (GstPad *pad, GstQuery *query)
     return ret;
 }
 #endif
-
+#include <sched.h>
 static void
 omx_setup (GstOmxBaseFilter *omx_base)
 {
     GstOmxBaseVideoDec *self;
     GOmxCore *gomx;
+	pthread_attr_t         attr;
+	struct sched_param     schedParam;
 
     self = GST_OMX_BASE_VIDEODEC (omx_base);
     gomx = (GOmxCore *) omx_base->gomx;
@@ -461,6 +466,10 @@ omx_setup (GstOmxBaseFilter *omx_base)
         G_OMX_PORT_SET_DEFINITION (omx_base->in_port, &param);
         GST_DEBUG_OBJECT (self, "G_OMX_PORT_SET_DEFINITION 1!!!");
     }
+   /* schedParam.sched_priority = 25;
+    if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
+		 printf("Error setting scheduler\n");
+	}*/	
 
     GST_INFO_OBJECT (omx_base, "end");
 }
