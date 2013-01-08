@@ -27,6 +27,7 @@
 
 G_BEGIN_DECLS
 
+
 /* Type macros for GST_TYPE_OMXBUFFERTRANSPORT */
 #define GST_TYPE_OMXBUFFERTRANSPORT \
     (gst_omxbuffertransport_get_type())

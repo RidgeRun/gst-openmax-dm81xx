@@ -414,7 +414,6 @@ release_buffer (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer)
             DEBUG (port, "ETB: omx_buffer=%p, pAppPrivate=%p, pBuffer=%p",
                     omx_buffer, omx_buffer ? omx_buffer->pAppPrivate : 0, omx_buffer ? omx_buffer->pBuffer : 0);
             if(omx_buffer->nFilledLen != 0) {
-			   DEBUG_BUFFER_IN(GST_OBJECT_NAME(GST_OBJECT_CAST(port->core->object)), omx_buffer->nTimeStamp);
                eError = OMX_EmptyThisBuffer (port->core->omx_handle, omx_buffer);
                if (eError != OMX_ErrorNone) {
                   DEBUG (port, "Empty this buffer returned eError =%x",eError);

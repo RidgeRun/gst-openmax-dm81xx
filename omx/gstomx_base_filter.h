@@ -71,8 +71,6 @@ struct GstOmxBaseFilter
 	gboolean isFlushed;
 	guint filterType;
 
-	guint rt_priority_to_set;
-
 };
 
 struct GstOmxBaseFilterClass

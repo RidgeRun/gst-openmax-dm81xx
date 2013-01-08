@@ -193,7 +193,7 @@ omx_setup (GstOmxBaseFilter *omx_base)
     paramPort.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
     paramPort.format.video.eColorFormat = OMX_COLOR_FormatYCbYCr;
     paramPort.nBufferSize =  self->out_stride * self->out_height;
-    paramPort.nBufferCountActual = 6;
+    paramPort.nBufferCountActual = 8;
     paramPort.nBufferAlignment = 0;
     paramPort.bBuffersContiguous = 0;
     G_OMX_PORT_SET_DEFINITION (omx_base->out_port, &paramPort);

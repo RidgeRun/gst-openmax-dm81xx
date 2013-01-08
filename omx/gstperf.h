@@ -59,7 +59,6 @@ struct _Gstperf
   GstClockTime start_ts;
   GstClockTime last_ts;
   GstClockTime interval_ts;
-  GstClockTime lastbuf_ts;
 
   gboolean print_fps, print_arm_load, fps_update_interval;
   unsigned long int  total;

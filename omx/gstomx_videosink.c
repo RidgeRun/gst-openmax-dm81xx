@@ -541,8 +541,6 @@ type_instance_init (GTypeInstance *instance,
     omx_base = GST_OMX_BASE_SINK (instance);
     self = GST_OMX_VIDEOSINK (instance);
     omx_base->omx_setup = omx_setup;    
-
-	omx_base->gomx->rt_priority_to_set = 30; // Callbacks thread
     
     g_object_set (self, "colorkey", TRUE, NULL);
     g_object_set (self, "display-mode", "OMX_DC_MODE_1080P_60", NULL);

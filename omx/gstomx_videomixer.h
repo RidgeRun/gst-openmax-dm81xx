@@ -114,7 +114,6 @@ struct GstOmxVideoMixer
 	guint outbufsize;
 };
 
-
 struct GstOmxVideoMixerClass
 {
     GstElementClass parent_class;

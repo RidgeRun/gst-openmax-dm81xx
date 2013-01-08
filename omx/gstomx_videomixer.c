@@ -175,6 +175,7 @@ gst_videomixer_pad_set_property (GObject * object, guint prop_id,
       break;
     case ARG_OUT_X:
       pad->outX  = g_value_get_uint (value);
+	//  printf("property X!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:%d\n",pad->outX);
       break;
     case ARG_OUT_Y:
       pad->outY  = g_value_get_uint (value);
@@ -504,7 +505,6 @@ set_property (GObject *obj,
     GstOmxVideoMixer *self;
 
     self = GST_OMX_VIDEO_MIXER (obj);
-
     switch (prop_id)
     {
         case ARG_COMPONENT_ROLE:
@@ -1023,7 +1023,7 @@ vidmix_port_recv (GstOmxVideoMixer *self)
         {
             return NULL;
         }
-
+        //printf("Received:%p\n",omx_buffer1->pBuffer);
 		if(ii == 0) {
 			omx_buffer = omx_buffer1;
 		} else {
@@ -1465,7 +1465,7 @@ static void* vidmix_input_loop(void *arg) {
     {
        printf("port not ennabled!!\n");
     }
-
+    //printf("Init done!!\n");
 
     while(TRUE) {
 		OMX_BUFFERHEADERTYPE *omx_buffer;

@@ -81,7 +81,6 @@ gstomx_vfpc_set_port_index (GObject *obj, int index)
 
     /* create new core and ports */
     omx_base->gomx = g_omx_core_new (omx_base, self->g_class);
-	omx_base->gomx->rt_priority_to_set = 29; // Callbacks thread
     omx_base->in_port = g_omx_core_get_port (omx_base->gomx, "in", self->input_port_index);
     omx_base->out_port = g_omx_core_get_port (omx_base->gomx, "out", self->output_port_index);
 
@@ -107,23 +106,10 @@ type_base_init (gpointer g_class)
 
     bfilter_class->pad_event = pad_event;
 }
+
 static GstFlowReturn
 push_buffer (GstOmxBaseFilter *omx_base, GstBuffer *buf)
 {
-   GstOmxBaseVfpc *self;	
-   self = GST_OMX_BASE_VFPC (omx_base);
-   #if 0
-   if(self->firstTime == TRUE)
-   	{
-   	  pthread_attr_t         attr;
-	  struct sched_param     schedParam;
-	  schedParam.sched_priority = 18;
-		   if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
-				printf("Error setting scheduler\n");
-		   }
-      self->firstTime = FALSE;
-   	}
-	#endif
     return parent_class->push_buffer (omx_base, buf);
 }
 
@@ -186,11 +172,11 @@ sink_setcaps (GstPad *pad,
             self->framerate_num = gst_value_get_fraction_numerator (framerate);
             self->framerate_denom = gst_value_get_fraction_denominator (framerate);
 
-            /*omx_base->duration = gst_util_uint64_scale_int(GST_SECOND,
+            omx_base->duration = gst_util_uint64_scale_int(GST_SECOND,
                     gst_value_get_fraction_denominator (framerate),
                     gst_value_get_fraction_numerator (framerate));
             GST_DEBUG_OBJECT (self, "Nominal frame duration =%"GST_TIME_FORMAT,
-                                GST_TIME_ARGS (omx_base->duration));*/
+                                GST_TIME_ARGS (omx_base->duration));
         }
     }
 	/* check for pixel-aspect-ratio, to set to src caps */
@@ -301,7 +287,6 @@ omx_setup (GstOmxBaseFilter *omx_base)
     GstOmxBaseVfpc *self;
     GOmxCore *gomx;
     GOmxPort *port;
-	pthread_attr_t         attr;
 
     self = GST_OMX_BASE_VFPC (omx_base);
     gomx = (GOmxCore *) omx_base->gomx;
@@ -327,16 +312,6 @@ omx_setup (GstOmxBaseFilter *omx_base)
 
     /* indicate that port is now configured */
     self->port_configured = TRUE;
-	#if 0
-	{
-		printf("Setting RT priority!!\n");
-		struct sched_param     schedParam;
-		schedParam.sched_priority = 16;
-		if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
-			printf("Error setting scheduler\n");
-		}
-	}
-	#endif
 
     GST_INFO_OBJECT (omx_base, "end");
 }
@@ -372,12 +347,9 @@ type_instance_init (GTypeInstance *instance,
     omx_base = GST_OMX_BASE_FILTER (instance);
     self = GST_OMX_BASE_VFPC (instance);
 
-	omx_base->gomx->rt_priority_to_set = 29; // Callbacks thread
-	omx_base->rt_priority_to_set = 28;       // Output thread
-
     omx_base->omx_setup = omx_setup;
     self->g_class = g_class;
-    self->firstTime = TRUE;
+
     gst_pad_set_setcaps_function (omx_base->sinkpad,
             GST_DEBUG_FUNCPTR (sink_setcaps));
     gst_pad_set_setcaps_function (omx_base->srcpad,
