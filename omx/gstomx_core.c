@@ -181,7 +181,7 @@ g_omx_core_new (gpointer object, gpointer klass)
             NULL);
     }
 
-	core->sched_prio_set = FALSE;
+	core->rt_priority_to_set = 0;
 
     return core;
 }
@@ -603,16 +603,20 @@ EventHandler (OMX_HANDLETYPE omx_handle,
     GOmxCore *core;
 
     core = (GOmxCore *) app_data;
-
-	if (core->sched_prio_set == FALSE) {
+#if 0
+	if (core->rt_priority_to_set > 0) {
+	#if 1
 		struct sched_param     schedParam;
-		schedParam.sched_priority = 30;
+		schedParam.sched_priority = core->rt_priority_to_set;
 		if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
 			printf("Error setting scheduler\n");
 		}
-		core->sched_prio_set = TRUE;
+	#else
+		// nice(-10);
+	#endif
+		core->rt_priority_to_set = 0;
 	}
-
+#endif
     switch (event)
     {
         case OMX_EventCmdComplete:
@@ -727,13 +731,17 @@ EmptyBufferDone (OMX_HANDLETYPE omx_handle,
     core = (GOmxCore*) app_data;
     port = get_port (core, omx_buffer->nInputPortIndex);
 
-	if (core->sched_prio_set == FALSE) {
+	if (core->rt_priority_to_set > 0) {
+	#if 1
 		struct sched_param     schedParam;
-		schedParam.sched_priority = 30;
+		schedParam.sched_priority = core->rt_priority_to_set;
 		if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
 			printf("Error setting scheduler\n");
 		}
-		core->sched_prio_set = TRUE;
+	#else
+		// nice(-10);
+	#endif
+		core->rt_priority_to_set = 0;
 	}
 
     GST_DEBUG_OBJECT (core->object, "EBD: omx_buffer=%p, pAppPrivate=%p, pBuffer=%p",
@@ -759,13 +767,17 @@ FillBufferDone (OMX_HANDLETYPE omx_handle,
     core = (GOmxCore *) app_data;
     port = get_port (core, omx_buffer->nOutputPortIndex);
 
-	if (core->sched_prio_set == FALSE) {
+	if (core->rt_priority_to_set > 0) {
+	#if 1
 		struct sched_param     schedParam;
-		schedParam.sched_priority = 30;
+		schedParam.sched_priority = core->rt_priority_to_set;
 		if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
 			printf("Error setting scheduler\n");
 		}
-		core->sched_prio_set = TRUE;
+	#else
+		// nice(-10);
+	#endif
+		core->rt_priority_to_set = 0;
 	}
 
     GST_DEBUG_OBJECT (core->object, "FBD: omx_buffer=%p, pAppPrivate=%p, pBuffer=%p",

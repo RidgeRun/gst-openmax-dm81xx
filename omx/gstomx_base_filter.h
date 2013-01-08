@@ -71,7 +71,7 @@ struct GstOmxBaseFilter
 	gboolean isFlushed;
 	guint filterType;
 
-	gboolean sched_prio_set;
+	guint rt_priority_to_set;
 
 };
 

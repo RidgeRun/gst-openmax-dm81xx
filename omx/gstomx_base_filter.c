@@ -439,13 +439,17 @@ output_loop (gpointer data)
     self = GST_OMX_BASE_FILTER (gst_pad_get_parent (pad));
     gomx = self->gomx;
 
-	if (self->sched_prio_set == FALSE) {
+	if (self->rt_priority_to_set > 0) {
+	#if 1
 		struct sched_param     schedParam;
-		schedParam.sched_priority = 30;
+		schedParam.sched_priority = self->rt_priority_to_set;
 		if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
 			printf("Error setting scheduler\n");
 		}
-		self->sched_prio_set = TRUE;
+	#else
+		// nice(-10);
+	#endif
+		self->rt_priority_to_set = 0;
 	}
 
     bclass = GST_OMX_BASE_FILTER_GET_CLASS (self);
@@ -875,7 +879,7 @@ type_instance_init (GTypeInstance *instance,
 
     GST_LOG_OBJECT (self, "begin");
 
-	self->sched_prio_set = FALSE;
+	self->rt_priority_to_set = 0;
 
     /* GOmx */
     self->gomx = g_omx_core_new (self, g_class);

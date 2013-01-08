@@ -509,6 +509,9 @@ type_instance_init (GTypeInstance *instance,
     omx_base->omx_setup = omx_setup;
     omx_base->push_cb = push_cb;
 
+	omx_base->gomx->rt_priority_to_set = 27; // Callbacks thread
+	omx_base->rt_priority_to_set = 26;       // Output thread
+
     omx_base->gomx->settings_changed_cb = settings_changed_cb;
 
     omx_base->in_port->omx_allocate = TRUE;

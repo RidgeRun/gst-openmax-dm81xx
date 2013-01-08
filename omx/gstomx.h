@@ -25,6 +25,9 @@
 #include <gst/gst.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+#include <sys/types.h>
 
 G_BEGIN_DECLS
 
@@ -32,6 +35,8 @@ GST_DEBUG_CATEGORY_EXTERN (gstomx_debug);
 GST_DEBUG_CATEGORY_EXTERN (gstomx_util_debug);
 GST_DEBUG_CATEGORY_EXTERN (gstomx_ppm);
 #define GST_CAT_DEFAULT gstomx_debug
+
+// #define ENABLE_OMX_DEBUG
 
 #ifdef ENABLE_OMX_DEBUG
 extern FILE *omx_debug_fp;
@@ -41,26 +46,34 @@ extern struct timeval omx_debug_start_time;
 	struct timeval tv; \
 	gettimeofday(&tv, NULL); \
 	tv.tv_sec -= omx_debug_start_time.tv_sec; \
-	fprintf(omx_debug_fp, "%d%06d Buffer [%lld] in %s\n", tv.tv_sec, tv.tv_usec, ts, name); \
+	fprintf(omx_debug_fp, "%d%06d Buffer [%lld] in %s (%d)\n", tv.tv_sec, tv.tv_usec, ts, name, syscall(SYS_gettid)); \
 } while (0)
 
 #define DEBUG_BUFFER_OUT(name,ts) do { \
 	struct timeval tv; \
 	gettimeofday(&tv, NULL); \
 	tv.tv_sec -= omx_debug_start_time.tv_sec; \
-	fprintf(omx_debug_fp, "%d%06d Buffer [%lld] out %s\n", tv.tv_sec, tv.tv_usec, ts, name); \
+	fprintf(omx_debug_fp, "%d%06d Buffer [%lld] out %s (%d)\n", tv.tv_sec, tv.tv_usec, ts, name, syscall(SYS_gettid)); \
 } while (0)
 
 #define DEBUG_BUFFER_FREE(name,ts) do { \
 	struct timeval tv; \
 	gettimeofday(&tv, NULL); \
 	tv.tv_sec -= omx_debug_start_time.tv_sec; \
-	fprintf(omx_debug_fp, "%d%06d Buffer [%lld] free %s\n", tv.tv_sec, tv.tv_usec, ts, name); \
+	fprintf(omx_debug_fp, "%d%06d Buffer [%lld] free %s (%d)\n", tv.tv_sec, tv.tv_usec, ts, name, syscall(SYS_gettid)); \
+} while (0)
+
+#define DEBUG_BUFFER_FEED(name,ts) do { \
+	struct timeval tv; \
+	gettimeofday(&tv, NULL); \
+	tv.tv_sec -= omx_debug_start_time.tv_sec; \
+	fprintf(omx_debug_fp, "%d%06d Buffer [%lld] feed %s (%d)\n", tv.tv_sec, tv.tv_usec, ts, name, syscall(SYS_gettid)); \
 } while (0)
 #else
 #define DEBUG_BUFFER_IN(name,ts) do { } while (0)
 #define DEBUG_BUFFER_OUT(name,ts) do { } while (0)
 #define DEBUG_BUFFER_FREE(name,ts) do { } while (0)
+#define DEBUG_BUFFER_FEED(name,ts) do { } while (0)
 #endif
 
 

@@ -63,7 +63,7 @@ struct GOmxCore
     gboolean gen_timestamps;
 	GstClockTime   last_buf_timestamp;
 
-	gboolean sched_prio_set;
+	guint rt_priority_to_set;
 };
 
 /* Utility Macros */

@@ -72,6 +72,7 @@ gst_perf_init (Gstperf * perf, GstperfClass * gclass)
     self->fps_update_interval = GST_SECOND * DEFAULT_INTERVAL;
     self->print_arm_load = PRINT_ARM_LOAD;
     self->print_fps = PRINT_FPS;
+	self->lastbuf_ts = GST_CLOCK_TIME_NONE;
 }
 
 static gboolean
@@ -79,7 +80,7 @@ display_current_fps (gpointer data)
 {
     Gstperf *self = GST_PERF (data);
     guint64 frames_count;
-    gdouble rr, average_fps;
+    gdouble rr, average_fps, average_bitrate;
     gchar fps_message[256];
     gdouble time_diff, time_elapsed;
     GstClockTime current_ts = gst_util_get_timestamp ();
@@ -93,13 +94,16 @@ display_current_fps (gpointer data)
     rr = (gdouble) (frames_count - self->last_frames_count) / time_diff;
 
     average_fps = (gdouble) frames_count / time_elapsed;
+    average_bitrate = ((gdouble) self->total_size * 8.0) / (time_diff * 1000);
 
-    g_snprintf (fps_message, 255, "%s: frames: %" G_GUINT64_FORMAT " \tcurrent: %.2f\t average: %.2f",  
-    name, frames_count, rr, average_fps);
+    g_snprintf (fps_message, 255, "%" GST_TIME_FORMAT " %s: frames: %" G_GUINT64_FORMAT " \tcurrent: %.2f \t average: %.2f \tbitrate: %.2f \tts: %" GST_TIME_FORMAT,  
+    GST_TIME_ARGS(current_ts), name, frames_count, rr, average_fps, average_bitrate, GST_TIME_ARGS(self->lastbuf_ts));
     g_print ("%s", fps_message);
 
+    self->total_size = G_GUINT64_CONSTANT (0);
     self->last_frames_count = frames_count;
     self->last_ts = current_ts;
+	self->lastbuf_ts = GST_CLOCK_TIME_NONE;
 
     return TRUE;
 }
@@ -286,16 +290,21 @@ print_cpu_load (Gstperf *perf)
     g_print ("\tarm-load: %d", load);
     return 0;
 }
-#if 1
+
 static GstFlowReturn
 gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 {
     Gstperf *self = GST_PERF (trans);
     GstClockTime ts;
 
+	// fprintf(stderr, "%d\n", GST_BUFFER_SIZE(buf));
+
     {
         self->frames_count++;
         self->total_size += GST_BUFFER_SIZE(buf);
+
+		if (self->lastbuf_ts == GST_CLOCK_TIME_NONE)
+			self->lastbuf_ts = GST_BUFFER_TIMESTAMP(buf);
 
         ts = gst_util_get_timestamp ();
         if (G_UNLIKELY (!GST_CLOCK_TIME_IS_VALID (self->start_ts))) {
@@ -317,26 +326,4 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 
     return GST_FLOW_OK;;
 }
-#else
-static GstFlowReturn
-gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
-{
-    Gstperf *self = GST_PERF (trans);
-    GstClockTime ts;
-
-    {
-        ts = gst_util_get_timestamp ();
-        
-
-            printf("%s:BUffer ts %"
-              GST_TIME_FORMAT ", arrived : %"
-              GST_TIME_FORMAT "\n",GST_OBJECT_NAME(self),GST_TIME_ARGS (GST_BUFFER_TIMESTAMP(buf)),GST_TIME_ARGS (ts));
-            self->interval_ts = ts;
-        
-    }
-
-    return GST_FLOW_OK;;
-}
-
-#endif
 

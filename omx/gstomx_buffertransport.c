@@ -87,11 +87,13 @@ release_buffer (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer)
         case GOMX_PORT_INPUT:
             GST_LOG ("ETB: omx_buffer=%p, pAppPrivate=%p, pBuffer=%p",
                     omx_buffer, omx_buffer ? omx_buffer->pAppPrivate : 0, omx_buffer ? omx_buffer->pBuffer : 0);
+			DEBUG_BUFFER_IN(GST_OBJECT_NAME(GST_OBJECT_CAST(port->core->object)), omx_buffer->nTimeStamp);
             OMX_EmptyThisBuffer (port->core->omx_handle, omx_buffer);
             break;
         case GOMX_PORT_OUTPUT:
             GST_LOG ("FTB: omx_buffer=%p, pAppPrivate=%p, pBuffer=%p",
                     omx_buffer, omx_buffer ? omx_buffer->pAppPrivate : 0, omx_buffer ? omx_buffer->pBuffer : 0);
+			DEBUG_BUFFER_FEED(GST_OBJECT_NAME(GST_OBJECT_CAST(port->core->object)), omx_buffer->nTimeStamp);
             OMX_FillThisBuffer (port->core->omx_handle, omx_buffer);
             break;
         default:

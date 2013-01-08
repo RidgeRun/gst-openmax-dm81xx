@@ -81,6 +81,7 @@ gstomx_vfpc_set_port_index (GObject *obj, int index)
 
     /* create new core and ports */
     omx_base->gomx = g_omx_core_new (omx_base, self->g_class);
+	omx_base->gomx->rt_priority_to_set = 29; // Callbacks thread
     omx_base->in_port = g_omx_core_get_port (omx_base->gomx, "in", self->input_port_index);
     omx_base->out_port = g_omx_core_get_port (omx_base->gomx, "out", self->output_port_index);
 
@@ -370,6 +371,9 @@ type_instance_init (GTypeInstance *instance,
 
     omx_base = GST_OMX_BASE_FILTER (instance);
     self = GST_OMX_BASE_VFPC (instance);
+
+	omx_base->gomx->rt_priority_to_set = 29; // Callbacks thread
+	omx_base->rt_priority_to_set = 28;       // Output thread
 
     omx_base->omx_setup = omx_setup;
     self->g_class = g_class;
