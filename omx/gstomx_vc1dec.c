@@ -28,6 +28,7 @@
 
 GSTOMX_BOILERPLATE (GstOmxVC1Dec, gst_omx_vc1dec, GstOmxBaseVideoDec, GST_OMX_BASE_VIDEODEC_TYPE);
 
+#if 0
 static GstCaps *
 generate_sink_template (void)
 {
@@ -47,6 +48,20 @@ generate_sink_template (void)
 
     return caps;
 }
+#endif
+
+static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE ("sink",
+		GST_PAD_SINK,
+		GST_PAD_ALWAYS,
+		GST_STATIC_CAPS ("video/x-wmv, "
+			"wmvversion=(int)3, "
+			"parsed=(boolean)true,"
+			"height=(int) [ 16, 4096], "
+			"width=(int) [ 16, 4096], "
+			"framerate=(fraction) [ 0, MAX], "
+			"wmvprofile=(string){ simple, main, advanced}")
+);
+
 
 #if 0 // SRC pad template already exists in gstomx_base_videodec.c
 static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE(
@@ -82,6 +97,7 @@ type_base_init (gpointer g_class)
     }
 
     {
+#if 0
         GstPadTemplate *template;
 
         template = gst_pad_template_new ("sink", GST_PAD_SINK,
@@ -90,10 +106,11 @@ type_base_init (gpointer g_class)
 
         gst_element_class_add_pad_template (element_class, template);
 
-#if 0
         gst_element_class_add_pad_template(element_class,
         gst_static_pad_template_get (&src_factory));
 #endif
+        gst_element_class_add_pad_template(element_class,
+        gst_static_pad_template_get (&sink_factory));
     }
 }
 

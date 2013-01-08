@@ -60,6 +60,9 @@ struct GstOmxBaseVideoDec
 	gint pixel_aspect_ratio_num;
 	gint pixel_aspect_ratio_denom;
 	gboolean interlaced;
+
+	/* For sending crop event */
+	guint prev_n_stride, prev_rowstride;
 };
 
 struct GstOmxBaseVideoDecClass

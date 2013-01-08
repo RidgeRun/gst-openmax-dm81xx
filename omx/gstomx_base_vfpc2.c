@@ -285,8 +285,8 @@ type_instance_init (GTypeInstance *instance,
 
 	for (i=0; i<NUM_OUTPUTS; i++) {
     	g_omx_port_free (omx_base->out_port[i]);
-		sprintf(srcname, "src_%02x", i);
-    	omx_base->out_port[i] = g_omx_core_get_port (omx_base->gomx, "out", 
+		sprintf(srcname, "out_%02x", i);
+    	omx_base->out_port[i] = g_omx_core_get_port (omx_base->gomx, srcname, 
 		   OMX_VFPC_OUTPUT_PORT_START_INDEX + i);
 		omx_base->out_port[i]->port_index = OMX_VFPC_OUTPUT_PORT_START_INDEX + i;
 		omx_base->out_port[i]->omx_allocate = TRUE;

@@ -40,6 +40,7 @@ struct GstOmxDeiScaler
 {
     GstOmxBaseVfpc2 omx_base;
 	gint framerate_divisor;
+	guint framecnt[NUM_OUTPUTS];
 };
 
 struct GstOmxDeiScalerClass

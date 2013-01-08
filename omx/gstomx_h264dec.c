@@ -89,31 +89,32 @@ initialize_port (GstOmxBaseFilter *omx_base)
     OMX_PARAM_PORTDEFINITIONTYPE paramPort;
     gint width, height;
     GOmxPort *port;
-
+	
     self = GST_OMX_BASE_VIDEODEC (omx_base);
     gomx = (GOmxCore *) omx_base->gomx;
-
+	
     GST_INFO_OBJECT (omx_base, "begin");
- 
+	
     GST_DEBUG_OBJECT (self, "G_OMX_PORT_GET_DEFINITION (output)");
     G_OMX_PORT_GET_DEFINITION (omx_base->out_port, &paramPort);
-
+	
     width = self->extendedParams.width;
     height = self->extendedParams.height;
-
+	
     paramPort.nPortIndex = 1;
-	paramPort.nBufferCountActual = 8;//15;//output_buffer_count
+	//Default value will be set by OMX VIDDEC plugin
+	//paramPort.nBufferCountActual = 8;//15;//output_buffer_count
     paramPort.format.video.nFrameWidth = width;
     paramPort.format.video.nFrameHeight = height;
     paramPort.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
     paramPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
-
+	
+	//Default value will be set by OMX VIDDEC plugin
+	//paramPort.format.video.xFramerate = (30) << 16;
+	
     GST_DEBUG_OBJECT (self, "nFrameWidth = %ld, nFrameHeight = %ld, nBufferCountActual = %ld",
-      paramPort.format.video.nFrameWidth, paramPort.format.video.nFrameHeight, 
-      paramPort.nBufferCountActual);
-
-    if(self->framerate_denom)
-       paramPort.format.video.xFramerate = (self->framerate_num/self->framerate_denom) << 16;
+		paramPort.format.video.nFrameWidth, paramPort.format.video.nFrameHeight, 
+		paramPort.nBufferCountActual);
 
     GST_DEBUG_OBJECT (self, "G_OMX_PORT_SET_DEFINITION (output)");
     G_OMX_PORT_SET_DEFINITION (omx_base->out_port, &paramPort);
@@ -121,23 +122,23 @@ initialize_port (GstOmxBaseFilter *omx_base)
 #if 0
 	G_OMX_PORT_GET_DEFINITION (omx_base->in_port, &paramPort);
     //paramPort.nBufferCountActual = 8;
-  //  paramPort.format.video.xFramerate = (30) << 16;
+	//  paramPort.format.video.xFramerate = (30) << 16;
     G_OMX_PORT_SET_DEFINITION (omx_base->in_port, &paramPort);
 #endif
 
 #if 0
     port = g_omx_core_get_port (gomx, "input", 0);
-
+	
     GST_DEBUG_OBJECT(self, "SendCommand(PortEnable, %d)", port->port_index);
     OMX_SendCommand (g_omx_core_get_handle (port->core),
-            OMX_CommandPortEnable, port->port_index, NULL);
+		OMX_CommandPortEnable, port->port_index, NULL);
     g_sem_down (port->core->port_sem);
-
+	
     port = g_omx_core_get_port (gomx, "output", 1);
-
+	
     GST_DEBUG_OBJECT(self, "SendCommand(PortEnable, %d)", port->port_index);
     OMX_SendCommand (g_omx_core_get_handle (port->core),
-            OMX_CommandPortEnable, port->port_index, NULL);
+		OMX_CommandPortEnable, port->port_index, NULL);
     g_sem_down (port->core->port_sem);
 #endif
     GST_INFO_OBJECT (omx_base, "end");

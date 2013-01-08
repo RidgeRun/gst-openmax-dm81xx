@@ -75,13 +75,19 @@ g_omx_port_new (GOmxCore *core, const gchar *name, guint index)
     port->n_offset = 0;
     port->vp6_hack = FALSE;
 
+	port->portptr = gst_omxportptr_new(port);
+
     return port;
 }
+
 
 void
 g_omx_port_free (GOmxPort *port)
 {
+
     DEBUG (port, "begin");
+
+	gst_omxportptr_unref(port->portptr);
 
     g_mutex_free (port->mutex);
 	g_cond_free(port->cond);
@@ -280,6 +286,8 @@ g_omx_port_free_buffers (GOmxPort *port)
 
     DEBUG (port, "begin");
 
+	gst_omxportptr_mutex_lock(port->portptr);
+
     for (i = 0; i < port->num_buffers; i++)
     {
         OMX_BUFFERHEADERTYPE *omx_buffer;
@@ -288,7 +296,11 @@ g_omx_port_free_buffers (GOmxPort *port)
          * OMX component, to avoid freeing a buffer that the component
          * is still accessing:
          */
+		#if 0
         omx_buffer = async_queue_pop_full (port->queue, TRUE, TRUE);
+		#else
+		omx_buffer = port->buffers[i];
+		#endif
 
         if (omx_buffer)
         {
@@ -309,6 +321,8 @@ g_omx_port_free_buffers (GOmxPort *port)
 
     g_free (port->buffers);
     port->buffers = NULL;
+	port->portptr->port = NULL;
+	gst_omxportptr_mutex_unlock(port->portptr);
 
     DEBUG (port, "end");
 }
@@ -613,7 +627,7 @@ send_prep_wmv_buffer_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, Gst
             memcpy (omx_buffer->pBuffer + omx_buffer->nOffset + GST_BUFFER_SIZE(self->codec_data),
             GST_BUFFER_DATA (buf), omx_buffer->nFilledLen - GST_BUFFER_SIZE(self->codec_data));
             if(GST_BUFFER_SIZE(self->codec_data) == 36){
-            self->codec_data = NULL;/*To be done, making null disables memcpy of configdata to every buffer*/
+            	self->codec_data = NULL;/*To be done, making null disables memcpy of configdata to every buffer*/
             }
         }
         else

@@ -68,7 +68,7 @@ static void
 type_class_init (gpointer g_class,
                  gpointer class_data)
 {
-    //GST_OMX_BASE_FILTER_CLASS (g_class)->push_buffer = push_buffer;
+    GST_OMX_BASE_FILTER_CLASS (g_class)->push_buffer = push_buffer;
 }
 
 static GstFlowReturn
@@ -78,10 +78,16 @@ push_buffer (GstOmxBaseFilter *omx_base, GstBuffer *buf)
     guint n_offset = omx_base->out_port->n_offset;
     if (n_offset)
     {
-        gst_pad_push_event (omx_base->srcpad,
-                gst_event_new_crop (n_offset / self->rowstride, /* top */
-                        n_offset % self->rowstride, /* left */
-                        -1, -1)); /* width/height: can be invalid for now */
+		if (self->prev_rowstride != self->rowstride ||
+			self->prev_n_stride != n_offset) {
+			self->prev_rowstride = self->rowstride;
+			self->prev_n_stride = n_offset;
+
+			gst_pad_push_event (omx_base->srcpad,
+					gst_event_new_crop (n_offset / self->rowstride, /* top */
+						n_offset % self->rowstride, /* left */
+						-1, -1)); /* width/height: can be invalid for now */
+		}
     }
     return parent_class->push_buffer (omx_base, buf);
 }
@@ -499,8 +505,10 @@ type_instance_init (GTypeInstance *instance,
                     gpointer g_class)
 {
     GstOmxBaseFilter *omx_base;
+    GstOmxBaseVideoDec *self;
 
     omx_base = GST_OMX_BASE_FILTER (instance);
+    self = GST_OMX_BASE_VIDEODEC (omx_base);
 
     omx_base->omx_setup = omx_setup;
     omx_base->push_cb = push_cb;
@@ -523,5 +531,8 @@ type_instance_init (GTypeInstance *instance,
             GST_DEBUG_FUNCPTR (src_setcaps));
 //    gst_pad_set_query_function (omx_base->srcpad,
 //            GST_DEBUG_FUNCPTR (src_query));
+
+	self->prev_rowstride = 0;
+	self->prev_n_stride = 0;
 }
 

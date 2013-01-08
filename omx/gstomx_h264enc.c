@@ -636,6 +636,7 @@ omx_setup (GstOmxBaseFilter *omx_base)
             GST_WARNING_OBJECT (omx_base, "'OMX.TI.VideoEncode.Config.NALFormat' unsupported");
         }
     }
+
 	{
 		OMX_VIDEO_PARAM_AVCTYPE tAVCParams;
 

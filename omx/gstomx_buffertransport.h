@@ -27,6 +27,7 @@
 
 G_BEGIN_DECLS
 
+
 /* Type macros for GST_TYPE_OMXBUFFERTRANSPORT */
 #define GST_TYPE_OMXBUFFERTRANSPORT \
     (gst_omxbuffertransport_get_type())
@@ -51,14 +52,14 @@ typedef struct _GstOmxBufferTransportClass GstOmxBufferTransportClass;
 #define GST_GET_OMXBUFFER(obj) \
     ((obj) ? GST_OMXBUFFERTRANSPORT(obj)->omxbuffer : NULL)
 #define GST_GET_OMXPORT(obj) \
-    ((obj) ? GST_OMXBUFFERTRANSPORT(obj)->port : NULL)
+    ((obj) ? GST_OMXBUFFERTRANSPORT(obj)->portptr->port : NULL)
 
 
 /* _GstOmxBufferTransport object */
 struct _GstOmxBufferTransport {
     GstBuffer  parent_instance;
     OMX_BUFFERHEADERTYPE *omxbuffer;
-    GOmxPort *port;
+    GstOmxPortPtr *portptr;
 	guint numAdditionalHeaders;
 	OMX_BUFFERHEADERTYPE **addHeader;
 	GstBuffer *parent;

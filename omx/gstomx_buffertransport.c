@@ -58,7 +58,7 @@ static void gst_omxbuffertransport_init(GstOmxBufferTransport *self)
     GST_LOG("begin\n");
 
     self->omxbuffer = NULL;
-    self->port = NULL;
+    self->portptr = NULL;
 
     GST_LOG("end\n");
 }
@@ -107,14 +107,20 @@ static void gst_omxbuffertransport_finalize(GstBuffer *gstbuffer)
     GST_LOG("begin\n"); 
 	static guint64 beftime = 0;
 
-    if(self->omxbuffer)
-    release_buffer (self->port, self->omxbuffer);
+	gst_omxportptr_mutex_lock(self->portptr);
 
-	for(ii = 0; ii < self->numAdditionalHeaders; ii++) {
-		//printf("finalize buffer:%p\n",self->addHeader[ii]);
-		if(self->addHeader[ii])
-    		release_buffer(self->port,self->addHeader[ii]);
+	if (self->portptr->port) {
+		if (self->omxbuffer)
+			release_buffer (self->portptr->port, self->omxbuffer);
+
+		for(ii = 0; ii < self->numAdditionalHeaders; ii++) {
+			//printf("finalize buffer:%p\n",self->addHeader[ii]);
+			if(self->addHeader[ii])
+				release_buffer(self->portptr->port,self->addHeader[ii]);
+		}
 	}
+	gst_omxportptr_mutex_unlock(self->portptr);
+
     if(self->addHeader) {
       free(self->addHeader);
 	  //printf("free\n");
@@ -134,7 +140,8 @@ static void gst_omxbuffertransport_finalize(GstBuffer *gstbuffer)
 	
 	self->addHeader = NULL;
     self->omxbuffer = NULL;
-    self->port = NULL;
+	gst_omxportptr_unref(self->portptr);
+    self->portptr = NULL;
     self->parent = NULL;
     /* Call GstBuffer's finalize routine, so our base class can do it's cleanup
      * as well.  If we don't do this, we'll have a memory leak that is very
@@ -165,7 +172,7 @@ GstBuffer* gst_omxbuffertransport_new (GOmxPort *port, OMX_BUFFERHEADERTYPE *buf
     }
 
     tdt_buf->omxbuffer  = buffer;
-    tdt_buf->port       = port;
+    tdt_buf->portptr    = gst_omxportptr_ref(port->portptr);
 
 	tdt_buf->numAdditionalHeaders = 0;
 	tdt_buf->addHeader = NULL;
@@ -197,7 +204,7 @@ GstBuffer* gst_omxbuffertransport_clone (GstBuffer *parent, GOmxPort *port)
     }
 
     tdt_buf->omxbuffer  = NULL;
-    tdt_buf->port       = port;
+    tdt_buf->portptr    = gst_omxportptr_ref(port->portptr);
 	tdt_buf->numAdditionalHeaders = 0;
 	tdt_buf->addHeader = NULL;
 	tdt_buf->bufSem    = NULL;
@@ -236,4 +243,6 @@ void gst_omxbuffertransport_set_bufsem (GstOmxBufferTransport *self ,GSem *sem)
     self->bufSem = sem;
     return ;
 }
+
+
 

@@ -21,6 +21,7 @@
 #define __GST_VIDEO_MIXER_PAD_H__
 
 #include <gst/gst.h>
+#include <async_queue.h>
 
 G_BEGIN_DECLS
 
@@ -41,19 +42,24 @@ typedef struct _GstVideoMixerPadClass GstVideoMixerPadClass;
 struct _GstVideoMixerPad
 {
   GstPad parent;                /* subclass the pad */
-
-  gint64 queued;
-
-  guint in_width, in_height;
+  guint idx;
+  guint in_width, in_height,in_stride;
+  AsyncQueue *queue;
   gint fps_n;
   gint fps_d;
   gint par_n;
   gint par_d;
-
-  gint xpos, ypos;
-  guint zorder;
-  gint blend_mode;
-  gdouble alpha;
+  gboolean eos;
+  GstBuffer *lastBuf;
+  guint order;
+  gint outWidth;
+  gint outHeight;
+  gint outX;
+  gint outY;
+  gint inX;
+  gint inY;
+  gint cropWidth;
+  gint cropHeight;
 };
 
 struct _GstVideoMixerPadClass

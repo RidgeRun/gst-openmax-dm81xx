@@ -26,6 +26,8 @@
 #include "gstomx.h"
 #include "gstomx_interface.h"
 #include "gstomx_buffertransport.h"
+#include "OMX_TI_Common.h"
+#include "OMX_TI_Index.h"
 
 enum
 {
@@ -36,6 +38,7 @@ enum
     ARG_USE_TIMESTAMPS,
     ARG_NUM_INPUT_BUFFERS,
     ARG_NUM_OUTPUT_BUFFERS,
+	ARG_NUM_FRAME_RATE,
 	ARG_GEN_TIMESTAMPS
 };
 
@@ -267,15 +270,40 @@ set_property (GObject *obj,
                 OMX_U32 nBufferCountActual = g_value_get_uint (value);
                 GOmxPort *port = (prop_id == ARG_NUM_INPUT_BUFFERS) ?
                         self->in_port : self->out_port;
-
                 G_OMX_PORT_GET_DEFINITION (port, &param);
 
-                g_return_if_fail (nBufferCountActual >= param.nBufferCountMin);
-                param.nBufferCountActual = nBufferCountActual;
+				g_return_if_fail(nBufferCountActual >= param.nBufferCountMin);				
 
+				param.nBufferCountActual = nBufferCountActual;
                 G_OMX_PORT_SET_DEFINITION (port, &param);
             }
             break;
+		case ARG_NUM_FRAME_RATE:
+			{
+				OMX_PARAM_PORTDEFINITIONTYPE param;
+				OMX_PARAM_COMPPORT_NOTIFYTYPE pNotifyType;
+				OMX_ERRORTYPE error_val = OMX_ErrorNone;
+
+                OMX_U32 nFramerate = g_value_get_uint (value);
+                
+
+                G_OMX_PORT_GET_DEFINITION (self->out_port, &param);
+
+				param.format.video.xFramerate = (nFramerate) << 16;
+                
+                G_OMX_PORT_SET_DEFINITION (self->out_port, &param);
+
+				/* Setting Notify type for both input and ouput ports*/
+				_G_OMX_INIT_PARAM (&pNotifyType);
+				pNotifyType.eNotifyType = OMX_NOTIFY_TYPE_NONE;
+				pNotifyType.nPortIndex =  0;				
+				G_OMX_PORT_SET_NOTIFY_DEFINITION(self->in_port, &pNotifyType);
+
+				pNotifyType.eNotifyType = OMX_NOTIFY_TYPE_NONE;
+				pNotifyType.nPortIndex =  1;													
+				G_OMX_PORT_SET_NOTIFY_DEFINITION(self->out_port, &pNotifyType);
+			}
+			break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
             break;
@@ -321,6 +349,13 @@ get_property (GObject *obj,
                 g_value_set_uint (value, param.nBufferCountActual);
             }
             break;
+		case ARG_NUM_FRAME_RATE:
+			{
+				OMX_PARAM_PORTDEFINITIONTYPE param;                
+                G_OMX_PORT_GET_DEFINITION (self->in_port, &param);
+                g_value_set_uint (value, param.format.video.xFramerate >> 16);
+			}
+			break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
             break;
@@ -391,7 +426,11 @@ type_class_init (gpointer g_class,
         g_object_class_install_property (gobject_class, ARG_NUM_OUTPUT_BUFFERS,
                                          g_param_spec_uint ("output-buffers", "Output buffers",
                                                             "The number of OMX output buffers",
-                                                            1, 10, 4, G_PARAM_READWRITE));
+                                                            1, 16, 10, G_PARAM_READWRITE));
+		g_object_class_install_property (gobject_class, ARG_NUM_FRAME_RATE,
+                                         g_param_spec_uint ("framerate", "Frame rate",
+                                                            "The number of OMX output buffers",
+                                                            1, 60, 30, G_PARAM_READWRITE));
     }
 }
 

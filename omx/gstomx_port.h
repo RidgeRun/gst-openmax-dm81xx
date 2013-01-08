@@ -30,10 +30,54 @@
 
 G_BEGIN_DECLS
 
+typedef struct {
+    GOmxPort *port;
+	gint refcnt;
+	GMutex *mutex;
+} GstOmxPortPtr;
+
+static inline void gst_omxportptr_mutex_lock(GstOmxPortPtr *self) {
+	g_mutex_lock(self->mutex);
+}
+
+static inline void gst_omxportptr_mutex_unlock(GstOmxPortPtr *self) {
+	g_mutex_unlock(self->mutex);
+}
+
+static inline GstOmxPortPtr *gst_omxportptr_ref(GstOmxPortPtr *self) {
+	g_mutex_lock(self->mutex);
+	self->refcnt++;
+	g_mutex_unlock(self->mutex);
+	return self;
+}
+
+static inline void gst_omxportptr_unref(GstOmxPortPtr *self) {
+	g_mutex_lock(self->mutex);
+	self->refcnt--;
+	if (0 == self->refcnt) {
+		g_mutex_unlock(self->mutex);
+		g_mutex_free(self->mutex);
+		g_free(self);
+		return;
+	}
+	g_mutex_unlock(self->mutex);
+}
+
+static inline GstOmxPortPtr* gst_omxportptr_new(GOmxPort *port) {
+	GstOmxPortPtr *p = g_new0(GstOmxPortPtr, 1);
+	if (p) {
+		p->refcnt = 1;
+		p->port = port;
+		p->mutex = g_mutex_new();
+		if (!p->mutex) { g_free(p); return NULL; }
+	}
+	return p;
+}
+
+
 #define GST_BUFFER_FLAG_BUSY (GST_BUFFER_FLAG_LAST << 1)
 
 /* Typedefs. */
-
 typedef enum GOmxPortType GOmxPortType;
 typedef struct OmxBufferInfo OmxBufferInfo;
 
@@ -92,6 +136,8 @@ struct GOmxPort
     OmxBufferInfo *share_buffer_info;   
 
 	GCond *cond;
+
+	GstOmxPortPtr *portptr;
 };
 
 /* Macros. */
@@ -121,6 +167,13 @@ struct GOmxPort
 
 #define G_OMX_PORT_SET_DEFINITION(port, param) \
         G_OMX_PORT_SET_PARAM (port, OMX_IndexParamPortDefinition, param)
+
+#define G_OMX_PORT_GET_NOTIFY_DEFINITION(port, param) \
+        G_OMX_PORT_GET_PARAM (port, OMX_TI_IndexParamCompPortNotifyType, param)
+
+#define G_OMX_PORT_SET_NOTIFY_DEFINITION(port, param) \
+        G_OMX_PORT_SET_PARAM (port, OMX_TI_IndexParamCompPortNotifyType, param)
+
 
 
 /* Functions. */
