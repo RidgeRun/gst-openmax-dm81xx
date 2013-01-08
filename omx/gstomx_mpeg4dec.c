@@ -178,7 +178,7 @@ initialize_port (GstOmxBaseFilter *omx_base)
     pOutPortDef.nPortIndex = 1;
   pOutPortDef.eDir = OMX_DirOutput;
   /* componet would expect these numbers of buffers to be allocated */
-  pOutPortDef.nBufferCountActual = 8;
+  //pOutPortDef.nBufferCountActual = 8;
   pOutPortDef.nBufferCountMin = 1;
 
   /* Codec requires padded height and width and width needs to be aligned at
@@ -207,7 +207,7 @@ initialize_port (GstOmxBaseFilter *omx_base)
   /* bitrate does not matter for decoder */
   pOutPortDef.format.video.nBitrate = 25000000;
   /* as per openmax frame rate is in Q16 format */
-  pOutPortDef.format.video.xFramerate = 60 << 16;
+  //pOutPortDef.format.video.xFramerate = 60 << 16;
   pOutPortDef.format.video.bFlagErrorConcealment = OMX_FALSE;
   /* output is raw YUV 420 SP format, It support only this */
   pOutPortDef.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
