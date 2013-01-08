@@ -441,14 +441,12 @@ src_query (GstPad *pad, GstQuery *query)
     return ret;
 }
 #endif
-#include <sched.h>
 static void
 omx_setup (GstOmxBaseFilter *omx_base)
 {
     GstOmxBaseVideoDec *self;
     GOmxCore *gomx;
 	pthread_attr_t         attr;
-	struct sched_param     schedParam;
 
     self = GST_OMX_BASE_VIDEODEC (omx_base);
     gomx = (GOmxCore *) omx_base->gomx;
@@ -466,11 +464,6 @@ omx_setup (GstOmxBaseFilter *omx_base)
         G_OMX_PORT_SET_DEFINITION (omx_base->in_port, &param);
         GST_DEBUG_OBJECT (self, "G_OMX_PORT_SET_DEFINITION 1!!!");
     }
-   /* schedParam.sched_priority = 25;
-    if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
-		 printf("Error setting scheduler\n");
-	}*/	
-
     GST_INFO_OBJECT (omx_base, "end");
 }
 

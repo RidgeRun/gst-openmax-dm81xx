@@ -34,6 +34,8 @@
 
 #include <OMX_CoreExt.h>
 
+#include <sched.h>
+
 GST_DEBUG_CATEGORY_EXTERN (gstomx_util_debug);
 
 /*
@@ -178,6 +180,8 @@ g_omx_core_new (gpointer object, gpointer klass)
             "library-name", library_name,
             NULL);
     }
+
+	core->sched_prio_set = FALSE;
 
     return core;
 }
@@ -600,6 +604,15 @@ EventHandler (OMX_HANDLETYPE omx_handle,
 
     core = (GOmxCore *) app_data;
 
+	if (core->sched_prio_set == FALSE) {
+		struct sched_param     schedParam;
+		schedParam.sched_priority = 30;
+		if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
+			printf("Error setting scheduler\n");
+		}
+		core->sched_prio_set = TRUE;
+	}
+
     switch (event)
     {
         case OMX_EventCmdComplete:
@@ -714,8 +727,19 @@ EmptyBufferDone (OMX_HANDLETYPE omx_handle,
     core = (GOmxCore*) app_data;
     port = get_port (core, omx_buffer->nInputPortIndex);
 
+	if (core->sched_prio_set == FALSE) {
+		struct sched_param     schedParam;
+		schedParam.sched_priority = 30;
+		if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
+			printf("Error setting scheduler\n");
+		}
+		core->sched_prio_set = TRUE;
+	}
+
     GST_DEBUG_OBJECT (core->object, "EBD: omx_buffer=%p, pAppPrivate=%p, pBuffer=%p",
             omx_buffer, omx_buffer->pAppPrivate, omx_buffer->pBuffer);
+
+	DEBUG_BUFFER_FREE(GST_OBJECT_NAME(GST_OBJECT_CAST(core->object)), omx_buffer->nTimeStamp);
 
     g_omx_core_got_buffer (core, port, omx_buffer);
 
@@ -735,8 +759,19 @@ FillBufferDone (OMX_HANDLETYPE omx_handle,
     core = (GOmxCore *) app_data;
     port = get_port (core, omx_buffer->nOutputPortIndex);
 
+	if (core->sched_prio_set == FALSE) {
+		struct sched_param     schedParam;
+		schedParam.sched_priority = 30;
+		if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
+			printf("Error setting scheduler\n");
+		}
+		core->sched_prio_set = TRUE;
+	}
+
     GST_DEBUG_OBJECT (core->object, "FBD: omx_buffer=%p, pAppPrivate=%p, pBuffer=%p",
             omx_buffer, omx_buffer->pAppPrivate, omx_buffer->pBuffer);
+
+	DEBUG_BUFFER_OUT(GST_OBJECT_NAME(GST_OBJECT_CAST(core->object)), omx_buffer->nTimeStamp);
 
     g_omx_core_got_buffer (core, port, omx_buffer);
 

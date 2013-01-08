@@ -62,6 +62,8 @@ struct GOmxCore
 
     gboolean gen_timestamps;
 	GstClockTime   last_buf_timestamp;
+
+	gboolean sched_prio_set;
 };
 
 /* Utility Macros */

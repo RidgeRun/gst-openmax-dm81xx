@@ -131,6 +131,12 @@ static TableItem element_table[] =
     { NULL, NULL, NULL, NULL, 0, NULL },
 };
 
+
+#ifdef ENABLE_OMX_DEBUG
+FILE *omx_debug_fp;
+struct timeval omx_debug_start_time;
+#endif
+
 static gboolean
 plugin_init (GstPlugin *plugin)
 {
@@ -142,6 +148,10 @@ plugin_init (GstPlugin *plugin)
     GST_DEBUG_CATEGORY_INIT (gstomx_ppm, "omx_ppm", 0,
                              "gst-openmax performance");
 
+#ifdef ENABLE_OMX_DEBUG
+	omx_debug_fp = fopen("omx_debug.txt", "w+");
+	gettimeofday(&omx_debug_start_time, NULL);
+#endif
     library_name_quark = g_quark_from_static_string ("library-name");
     component_name_quark = g_quark_from_static_string ("component-name");
     component_role_quark = g_quark_from_static_string ("component-role");

@@ -424,6 +424,7 @@ push_buffer (GstOmxBaseFilter *self,
     return ret;
 }
 
+#include <sched.h>
 static void
 output_loop (gpointer data)
 {
@@ -437,6 +438,15 @@ output_loop (gpointer data)
     pad = data;
     self = GST_OMX_BASE_FILTER (gst_pad_get_parent (pad));
     gomx = self->gomx;
+
+	if (self->sched_prio_set == FALSE) {
+		struct sched_param     schedParam;
+		schedParam.sched_priority = 30;
+		if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
+			printf("Error setting scheduler\n");
+		}
+		self->sched_prio_set = TRUE;
+	}
 
     bclass = GST_OMX_BASE_FILTER_GET_CLASS (self);
 
@@ -864,6 +874,8 @@ type_instance_init (GTypeInstance *instance,
     self = GST_OMX_BASE_FILTER (instance);
 
     GST_LOG_OBJECT (self, "begin");
+
+	self->sched_prio_set = FALSE;
 
     /* GOmx */
     self->gomx = g_omx_core_new (self, g_class);

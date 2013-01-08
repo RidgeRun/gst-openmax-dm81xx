@@ -26,7 +26,6 @@
 #include <OMX_TI_Index.h>
 
 #include <string.h> /* for memset */
-#include <sched.h>
 
 enum
 {
@@ -107,22 +106,23 @@ type_base_init (gpointer g_class)
 
     bfilter_class->pad_event = pad_event;
 }
-#include <sched.h>
 static GstFlowReturn
 push_buffer (GstOmxBaseFilter *omx_base, GstBuffer *buf)
 {
    GstOmxBaseVfpc *self;	
    self = GST_OMX_BASE_VFPC (omx_base);
+   #if 0
    if(self->firstTime == TRUE)
    	{
    	  pthread_attr_t         attr;
 	  struct sched_param     schedParam;
-	  schedParam.sched_priority = 28;
+	  schedParam.sched_priority = 18;
 		   if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
 				printf("Error setting scheduler\n");
 		   }
       self->firstTime = FALSE;
    	}
+	#endif
     return parent_class->push_buffer (omx_base, buf);
 }
 
@@ -301,7 +301,6 @@ omx_setup (GstOmxBaseFilter *omx_base)
     GOmxCore *gomx;
     GOmxPort *port;
 	pthread_attr_t         attr;
-	struct sched_param     schedParam;
 
     self = GST_OMX_BASE_VFPC (omx_base);
     gomx = (GOmxCore *) omx_base->gomx;
@@ -327,11 +326,16 @@ omx_setup (GstOmxBaseFilter *omx_base)
 
     /* indicate that port is now configured */
     self->port_configured = TRUE;
-    printf("Setting RT priority!!\n");
-	schedParam.sched_priority = 26;
-    if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
-		 printf("Error setting scheduler\n");
+	#if 0
+	{
+		printf("Setting RT priority!!\n");
+		struct sched_param     schedParam;
+		schedParam.sched_priority = 16;
+		if (sched_setscheduler (0, SCHED_RR, &schedParam) == -1) {
+			printf("Error setting scheduler\n");
+		}
 	}
+	#endif
 
     GST_INFO_OBJECT (omx_base, "end");
 }
