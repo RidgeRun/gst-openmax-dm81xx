@@ -168,6 +168,13 @@ struct GOmxPort
 #define G_OMX_PORT_SET_DEFINITION(port, param) \
         G_OMX_PORT_SET_PARAM (port, OMX_IndexParamPortDefinition, param)
 
+#define G_OMX_PORT_GET_NOTIFY_DEFINITION(port, param) \
+        G_OMX_PORT_GET_PARAM (port, OMX_TI_IndexParamCompPortNotifyType, param)
+
+#define G_OMX_PORT_SET_NOTIFY_DEFINITION(port, param) \
+        G_OMX_PORT_SET_PARAM (port, OMX_TI_IndexParamCompPortNotifyType, param)
+
+
 
 /* Functions. */
 
