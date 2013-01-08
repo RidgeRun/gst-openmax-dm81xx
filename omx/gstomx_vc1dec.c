@@ -293,10 +293,7 @@ initialize_port (GstOmxBaseFilter *omx_base)
     pOutPortDef.nPortIndex = 1;//OMX_VIDDEC_OUTPUT_PORT;
     pOutPortDef.eDir = OMX_DirOutput;
     /* componet would expect these numbers of buffers to be allocated */
-    if (width <=720 && height <=576)
-    pOutPortDef.nBufferCountActual = 100;
-    else
-    pOutPortDef.nBufferCountActual = 40;
+    pOutPortDef.nBufferCountActual = 8;
     pOutPortDef.nBufferCountMin = 1;
 
     /* Codec requires padded height and width and width needs to be aligned at
@@ -332,8 +329,6 @@ initialize_port (GstOmxBaseFilter *omx_base)
 
     port = g_omx_core_get_port (gomx, "input", 0);
     port = g_omx_core_get_port (gomx, "output", 1);
-
-    printf("gst_omx: init codec=vc1, width=%d, height=%d\n", width, height);
     GST_INFO_OBJECT (omx_base, "end");
     
 }
