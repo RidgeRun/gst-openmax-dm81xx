@@ -1580,6 +1580,7 @@ pad_chain (GstPad *pad,
             	}
 
                 self->numEosPending = self->numpads;
+
 #if 1
             	for(ii=0;ii<self->numpads;ii++)
             		for(kk=ii+1;kk<self->numpads;kk++)

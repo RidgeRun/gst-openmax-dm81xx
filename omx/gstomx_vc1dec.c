@@ -19,7 +19,6 @@
  *
  */
 
-
 #include "gstomx_vc1dec.h"
 #include "gstomx.h"
 
