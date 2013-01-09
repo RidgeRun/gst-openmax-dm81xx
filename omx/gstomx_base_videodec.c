@@ -418,6 +418,7 @@ src_query (GstPad *pad, GstQuery *query)
         gst_query_set_buffers_count (query, param.nBufferCountMin);
 
 /* REVISIT: OMX_TI_IndexParam2DBufferAllocDimension is not implemented in EZSDK OMX components */
+
 #if 0
 #ifdef USE_OMXTICORE
         {
@@ -461,6 +462,7 @@ omx_setup (GstOmxBaseFilter *omx_base)
         OMX_PARAM_PORTDEFINITIONTYPE param;
 
         /* Input port configuration. */
+        
         G_OMX_PORT_GET_DEFINITION (omx_base->in_port, &param);
 
         param.format.video.eCompressionFormat = self->compression_format;
@@ -485,6 +487,7 @@ static void push_cb (GstOmxBaseFilter *omx_base, GstBuffer *buf)
 
 	/* Change interlaced flag in srcpad caps if decoder differs with 
 	   what is already got from the upstream element */
+	   
 	i = (0 != (omxbuffer->nFlags & 
 				OMX_TI_BUFFERFLAG_VIDEO_FRAME_TYPE_INTERLACE));
 	if (i != self->interlaced) {
