@@ -717,12 +717,12 @@ create_src_caps (GstOmxVideoMixer *omx_base)
 
     self = GST_OMX_VIDEO_MIXER (omx_base);
     caps = gst_pad_peer_get_caps (omx_base->srcpad);
-     //printf("create src caps!!\n");
+
     if (gst_caps_is_empty (caps))
     {
         width = self->sinkpad[0]->in_width;
         height = self->sinkpad[0]->in_height;
-		//printf("set 1 height:%d, width:%d\n",height,width);
+
     }
     else
     {
@@ -735,10 +735,9 @@ create_src_caps (GstOmxVideoMixer *omx_base)
         {
             width = self->sinkpad[0]->in_width;
             height = self->sinkpad[0]->in_height;  
-			//printf("set 2 height:%d, width:%d\n",height,width);
         }
     }
-    //printf("set 3 height:%d, width:%d\n",height,width);
+
     caps = gst_caps_new_empty ();
     struc = gst_structure_new (("video/x-raw-yuv"),
             "width",  G_TYPE_INT, width,
@@ -779,7 +778,7 @@ scaler_setup (GstOmxVideoMixer *omx_base)
     self = GST_OMX_VIDEO_MIXER (omx_base);
 
     GST_LOG_OBJECT (self, "begin");
-   // printf("scaler setup!!|n");
+
     /* set the output cap */
     gst_pad_set_caps (omx_base->srcpad, create_src_caps (omx_base));
     for(ii = 0; ii < self->numpads; ii++) {
