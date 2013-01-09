@@ -175,7 +175,6 @@ gst_videomixer_pad_set_property (GObject * object, guint prop_id,
       break;
     case ARG_OUT_X:
       pad->outX  = g_value_get_uint (value);
-	//  printf("property X!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:%d\n",pad->outX);
       break;
     case ARG_OUT_Y:
       pad->outY  = g_value_get_uint (value);
