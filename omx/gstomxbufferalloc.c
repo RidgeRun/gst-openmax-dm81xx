@@ -190,6 +190,7 @@ gst_omx_buffer_alloc_init (GstomxBufferAlloc * filter,
 
   gst_element_add_pad (GST_ELEMENT (filter), filter->sinkpad);
   gst_element_add_pad (GST_ELEMENT (filter), filter->srcpad);
+  filter->out_port.portptr = gst_omxportptr_new(&filter->out_port);
   filter->silent = FALSE;
   filter->out_port.num_buffers = 10;
   filter->out_port.always_copy = FALSE;
