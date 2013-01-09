@@ -37,6 +37,7 @@ GSTOMX_BOILERPLATE (GstOmxBaseVideoDec, gst_omx_base_videodec, GstOmxBaseFilter,
 /* OMX component not handling other color formats properly.. use this workaround
  * until component is fixed or we rebase to get config file support..
  */
+
 #define VIDDEC_COLOR_WORKAROUND
 #ifdef VIDDEC_COLOR_WORKAROUND
 #  undef GSTOMX_ALL_FORMATS
