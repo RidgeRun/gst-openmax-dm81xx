@@ -160,13 +160,19 @@ sink_setcaps (GstPad *pad,
         {
             self->framerate_num = gst_value_get_fraction_numerator (framerate);
             self->framerate_denom = gst_value_get_fraction_denominator (framerate);
-
-            omx_base->duration = gst_util_uint64_scale_int(GST_SECOND,
-                    gst_value_get_fraction_denominator (framerate),
-                    gst_value_get_fraction_numerator (framerate));
-            GST_DEBUG_OBJECT (self, "Nominal frame duration =%"GST_TIME_FORMAT,
-                                GST_TIME_ARGS (omx_base->duration));
         }
+        else
+        {
+           self->framerate_num = 60;
+           self->framerate_denom = 1;
+
+        }
+        omx_base->duration = gst_util_uint64_scale_int(GST_SECOND,
+                self->framerate_denom,
+                self->framerate_num);
+        GST_DEBUG_OBJECT (self, "Nominal frame duration =%"GST_TIME_FORMAT,
+                                GST_TIME_ARGS (omx_base->duration));
+
     }
 	/* check for pixel-aspect-ratio, to set to src caps */
     {
