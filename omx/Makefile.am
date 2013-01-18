@@ -58,7 +58,9 @@ libgstomx_la_SOURCES = gstomx.c gstomx.h \
                gstomx_scaler.c gstomx_scaler.h   \
                gstomx_deiscaler.c gstomx_deiscaler.h   \
                gstomx_noisefilter.c gstomx_noisefilter.h  \
-	       gstomx_videomixer.c gstomx_videomixer.h gstomx_videomixerpad.h
+	       gstomx_videomixer.c gstomx_videomixer.h gstomx_videomixerpad.h	\
+			   gstomx_priority.c gstomx_priority.h	\
+			   gstomx_rrparser.c gstomx_rrparser.h
 
 
 libgstomx_la_LIBADD = $(OMXCORE_LIBS) $(GST_LIBS) $(GST_BASE_LIBS) -lgstvideo-0.10 $(top_builddir)/util/libutil.la
