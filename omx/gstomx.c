@@ -62,7 +62,7 @@
 #include "gstomx_noisefilter.h"
 #include "gstomx_base_ctrl.h"
 #include "gstomx_vc1dec.h"
-
+#include "gstomx_priority.h"
 #include "gstomx_videomixer.h"
 #include "gstomxbufferalloc.h"
 
@@ -127,6 +127,7 @@ static TableItem element_table[] =
     { "omx_noisefilter",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.NF",     "",                   GST_RANK_PRIMARY,      gst_omx_noisefilter_get_type },
     { "omx_ctrl",         "libOMX_Core.so",   "OMX.TI.VPSSM3.CTRL.DC",     "",                   GST_RANK_NONE,      gst_omx_base_ctrl_get_type },
 //    { "omx_camera",         "libOMX_Core.so",           "OMX.TI.DUCATI1.VIDEO.CAMERA",  NULL,                   GST_RANK_PRIMARY,   gst_omx_camera_get_type },
+	{ "priority", NULL, NULL,  NULL, GST_RANK_PRIMARY, gst_tipriority_get_type },
 	{ "omx_videomixer", 		"libOMX_Core.so",	"OMX.TI.VPSSM3.VFPC.INDTXSCWB", 	"", 				  GST_RANK_PRIMARY, 	 gst_omx_video_mixer_get_type },
     { NULL, NULL, NULL, NULL, 0, NULL },
 };
