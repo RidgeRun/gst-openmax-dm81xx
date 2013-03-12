@@ -287,9 +287,9 @@ g_omx_core_deinit (GOmxCore *core)
         if (core->omx_handle)
         {
             #ifdef USE_STATIC
-            core->omx_error = OMX_FreeHandle (core->omx_handle);
-            #else
             core->omx_error = core->imp->sym_table.free_handle (core->omx_handle);
+			#else
+            core->omx_error = OMX_FreeHandle (core->omx_handle);
             #endif
             GST_DEBUG_OBJECT (core->object, "OMX_FreeHandle(%p) -> %s",
                 core->omx_handle, g_omx_error_to_str (core->omx_error));
