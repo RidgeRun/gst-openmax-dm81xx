@@ -272,7 +272,7 @@ set_property (GObject *obj,
                         self->in_port : self->out_port;
                 G_OMX_PORT_GET_DEFINITION (port, &param);
 
-				g_return_if_fail(nBufferCountActual >= param.nBufferCountMin);				
+				//g_return_if_fail(nBufferCountActual >= param.nBufferCountMin);				
 
 				param.nBufferCountActual = nBufferCountActual;
                 G_OMX_PORT_SET_DEFINITION (port, &param);
