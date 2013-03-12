@@ -4,6 +4,7 @@ libgstomx_la_SOURCES = gstomx.c gstomx.h \
 		       gstomx_interface.c gstomx_interface.h \
 		       gstomx_base_filter.c gstomx_base_filter.h \
 		       gstomx_base_filter2.c gstomx_base_filter2.h \
+		       gstomx_base_filter21.c gstomx_base_filter21.h \
 		       gstomx_base_videodec.c gstomx_base_videodec.h \
 		       gstomx_base_videoenc.c gstomx_base_videoenc.h \
 		       gstomx_base_audiodec.c gstomx_base_audiodec.h \
@@ -58,7 +59,8 @@ libgstomx_la_SOURCES = gstomx.c gstomx.h \
                gstomx_scaler.c gstomx_scaler.h   \
                gstomx_deiscaler.c gstomx_deiscaler.h   \
                gstomx_noisefilter.c gstomx_noisefilter.h  \
-	       gstomx_videomixer.c gstomx_videomixer.h gstomx_videomixerpad.h	\
+			   gstomx_videomixer.c gstomx_videomixer.h gstomx_videomixerpad.h	\
+			   gstomx_videomixer_vodalys.c gstomx_videomixer_vodalys.h \
 			   gstomx_priority.c gstomx_priority.h	\
 			   gstomx_rrparser.c gstomx_rrparser.h
 
