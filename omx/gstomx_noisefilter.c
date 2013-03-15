@@ -198,7 +198,7 @@ omx_setup (GstOmxBaseFilter *omx_base)
     GST_LOG_OBJECT (self, "Setting number of channels");
 
     _G_OMX_INIT_PARAM (&numChannels);
-    numChannels.nNumChannelsPerHandle = 1;    
+    numChannels.nNumChannelsPerHandle = 16;    
     err = OMX_SetParameter (gomx->omx_handle, 
         (OMX_INDEXTYPE) OMX_TI_IndexParamVFPCNumChPerHandle, &numChannels);
 
