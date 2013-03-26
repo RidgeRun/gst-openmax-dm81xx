@@ -44,6 +44,9 @@ static OMX_BUFFERHEADERTYPE * request_buffer (GOmxPort *port);
 static void release_buffer (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer);
 static void setup_shared_buffer (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer);
 
+
+#define INFO(port, fmt, args...) \
+    GST_INFO ("<%s:%s> "fmt, GST_OBJECT_NAME ((port)->core->object), (port)->name, ##args)
 #define DEBUG(port, fmt, args...) \
     GST_DEBUG ("<%s:%s> "fmt, GST_OBJECT_NAME ((port)->core->object), (port)->name, ##args)
 #define LOG(port, fmt, args...) \
@@ -230,14 +233,14 @@ g_omx_port_allocate_buffers (GOmxPort *port)
         if (port->omx_allocate)
         {
            
-            DEBUG (port, "%d: OMX_AllocateBuffer(), size=%d", i, size);
+            INFO (port, "%d: OMX_AllocateBuffer(), size=%d", i, size);
             eError =  OMX_AllocateBuffer (port->core->omx_handle,
                                 &port->buffers[i],
                                 port->port_index,
                                 NULL,
                                 size);
             if (eError != OMX_ErrorNone) {
-               DEBUG (port, "%d: OMX_AllocateBuffer(), returned=%x", eError);
+               INFO (port, "%d: OMX_AllocateBuffer(), returned=%x",i,  eError);
            }
 
             g_return_if_fail (port->buffers[i]);
@@ -255,14 +258,16 @@ g_omx_port_allocate_buffers (GOmxPort *port)
                 buffer_data = g_malloc (size);
             }
 
-            DEBUG (port, "%d: OMX_UseBuffer(), size=%d, share_buffer=%d", i, size, port->share_buffer);
-            OMX_UseBuffer (port->core->omx_handle,
+            INFO (port, "%d: OMX_UseBuffer(), size=%d, share_buffer=%d", i, size, port->share_buffer);
+            eError = OMX_UseBuffer (port->core->omx_handle,
                            &port->buffers[i],
                            port->port_index,
                            NULL,
                            size,
                            buffer_data);
-
+			if (eError != OMX_ErrorNone) {
+               INFO (port, "%d: OMX_UseBuffer(), returned=%x",i,  eError);
+            }
             g_return_if_fail (port->buffers[i]);
 
             if (port->share_buffer)
