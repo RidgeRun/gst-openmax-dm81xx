@@ -216,7 +216,7 @@ omx_setup (GstOmxBaseFilter21 *omx_base)
 	paramPort.format.video.eColorFormat = OMX_COLOR_FormatYCbYCr;
 	paramPort.nBufferAlignment = 0;
 	paramPort.bBuffersContiguous = 0;
-	paramPort.nBufferCountActual = 5;
+	paramPort.nBufferCountActual = 4;
 	paramPort.format.video.nStride = self->out_stride;
 	paramPort.nBufferSize = paramPort.format.video.nStride * paramPort.format.video.nFrameHeight;
 	
