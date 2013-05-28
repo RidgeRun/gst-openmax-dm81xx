@@ -29,7 +29,6 @@
 #define CAMERA_INPUT_IDX 0
 #define SLIDE_INPUT_IDX 1
 
-
 #define BLACK 0x80008000
 #define GRAY  0x80808080
 #define GREEN 0x00800080
