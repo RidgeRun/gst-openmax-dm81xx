@@ -731,7 +731,7 @@ pad_event (GstPad *pad,
     switch (GST_EVENT_TYPE (event))
     {
         case GST_EVENT_EOS:
-            printf ("Recieved EOS event, press <CTRL+C> to terminate pipeline.\n");
+            /* printf ("Recieved EOS event, press <CTRL+C> to terminate pipeline.\n"); */
             /* if we are init'ed, and there is a running loop; then
              * if we get a buffer to inform it of EOS, let it handle the rest
              * in any other case, we send EOS */
