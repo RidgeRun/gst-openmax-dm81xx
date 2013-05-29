@@ -326,9 +326,9 @@ gst_omx_buffer_alloc_change_state (GstElement *element,
 
     switch (transition)
     {
+        /* FIXME: This is a workaround to avoid a big mem leak. Resources should
+	   be freed on the READY_TO_NULL transition */
         case GST_STATE_CHANGE_PAUSED_TO_READY:
-            break;
-        case GST_STATE_CHANGE_READY_TO_NULL:
 			if(filter->out_port.buffers) {
 			  for(ii = 0; ii < filter->out_port.num_buffers; ii++) {
     			  Memory_free(filter->heap,filter->out_port.buffers[ii]->pBuffer,filter->allocSize);
