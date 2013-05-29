@@ -510,6 +510,8 @@ gst_rrparser_to_packetized(GstRRParser *rrparser, GstBuffer *out_buffer) {
 					mark = (i + rrparser->SPS_PPS_end) + NAL_LENGTH;
 					GST_BUFFER_DATA(out_buffer) = &dest[i + rrparser->SPS_PPS_end];
 	                GST_BUFFER_SIZE(out_buffer) = size - (i + rrparser->SPS_PPS_end);
+			GST_BUFFER_FLAG_UNSET (out_buffer,
+                            GST_BUFFER_FLAG_DELTA_UNIT);
 				}
 				/* We found a P frame */
 				else
@@ -517,6 +519,8 @@ gst_rrparser_to_packetized(GstRRParser *rrparser, GstBuffer *out_buffer) {
 					GST_DEBUG("Single-NALU: we found a P-frame");
 					mark = i + NAL_LENGTH;
 					nal_type = (dest[i + NAL_LENGTH]) & 0x1f;
+					GST_BUFFER_FLAG_SET (out_buffer,
+	         			     GST_BUFFER_FLAG_DELTA_UNIT);
 				}
 				i = (size - 4);
 				break;
