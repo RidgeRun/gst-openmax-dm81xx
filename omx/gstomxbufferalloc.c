@@ -335,7 +335,6 @@ gst_omx_buffer_alloc_change_state (GstElement *element,
 			  }
 			  g_free(filter->out_port.buffers);
 			}
-			OMX_Deinit();
             break;
 
         default:
