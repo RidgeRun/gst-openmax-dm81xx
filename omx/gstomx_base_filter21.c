@@ -217,12 +217,12 @@ setup_ports (GstOmxBaseFilter21 *self)
 static void
 setup_input_buffer (GstOmxBaseFilter21 *self, GstBuffer *buf, int sink_num)
 {
-	int i,j;
+	int j;
+	gint i = sink_num;
 	if (GST_IS_OMXBUFFERTRANSPORT (buf))
 	{
 		OMX_PARAM_PORTDEFINITIONTYPE param;
 		GOmxPort *port, *in_port;
-		gint i = sink_num;
 		/* retrieve incoming buffer port information */
 		port = GST_GET_OMXPORT (buf);
 		/* Check if output port has set always_copy */
