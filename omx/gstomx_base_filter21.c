@@ -893,8 +893,8 @@ pad_event (GstPad *pad,
     switch (GST_EVENT_TYPE (event))
     {
         case GST_EVENT_EOS:
-            printf ("Recieved EOS event, press <CTRL+C> to terminate pipeline.\n");
-			g_mutex_lock (self->ready_lock);
+            /* printf ("Recieved EOS event, press <CTRL+C> to terminate pipeline.\n"); */
+	    /* 		g_mutex_lock (self->ready_lock); */
             self->number_eos--;
             printf("EOS : %d\n",self->number_eos);
 			g_mutex_unlock (self->ready_lock);
