@@ -138,6 +138,28 @@ omx_setup (GstOmxBaseFilter *omx_base)
     /* Set the output caps */
     gst_pad_set_caps (omx_base->srcpad, create_src_caps (omx_base));
 
+    /* Setting Memory type at input port to Raw Memory */
+    GST_LOG_OBJECT (self, "Setting input port to Raw memory");
+
+    _G_OMX_INIT_PARAM (&memTypeCfg);
+    memTypeCfg.nPortIndex = self->input_port_index;
+    memTypeCfg.eBufMemoryType = OMX_BUFFER_MEMORY_DEFAULT;
+    err = OMX_SetParameter (gomx->omx_handle, OMX_TI_IndexParamBuffMemType, &memTypeCfg);
+
+    if (err != OMX_ErrorNone)
+      return;
+
+    /* Setting Memory type at output port to Raw Memory */
+    GST_LOG_OBJECT (self, "Setting output port to Raw memory");
+
+    _G_OMX_INIT_PARAM (&memTypeCfg);
+    memTypeCfg.nPortIndex = self->output_port_index;
+    memTypeCfg.eBufMemoryType = OMX_BUFFER_MEMORY_DEFAULT;
+    err = OMX_SetParameter (gomx->omx_handle, OMX_TI_IndexParamBuffMemType, &memTypeCfg);
+
+    if (err != OMX_ErrorNone)
+      return;
+
     /* Input port configuration. */
     GST_INFO_OBJECT (self, "Setting port definition (input)");
 
