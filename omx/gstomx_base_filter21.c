@@ -218,9 +218,10 @@ static void
 setup_input_buffer (GstOmxBaseFilter21 *self, GstBuffer *buf, int sink_num)
 {
 	int j;
-	gint i = sink_num;
+	gint i = 0;
 	if (GST_IS_OMXBUFFERTRANSPORT (buf))
 	{
+		i = sink_num;
 		OMX_PARAM_PORTDEFINITIONTYPE param;
 		GOmxPort *port, *in_port;
 		/* retrieve incoming buffer port information */
@@ -963,7 +964,7 @@ pad_event (GstPad *pad,
     {
         case GST_EVENT_EOS:
             /* printf ("Recieved EOS event, press <CTRL+C> to terminate pipeline.\n"); */
-	    /* 		g_mutex_lock (self->ready_lock); */
+	    g_mutex_lock (self->ready_lock);
             self->number_eos--;
             printf("EOS : %d\n",self->number_eos);
 			g_mutex_unlock (self->ready_lock);
