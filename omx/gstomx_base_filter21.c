@@ -201,7 +201,7 @@ setup_ports (GstOmxBaseFilter21 *self)
     for (i = 0; i < NUM_INPUTS; i++) {
 		G_OMX_PORT_GET_DEFINITION (self->in_port[i], &param);
 		g_omx_port_setup (self->in_port[i], &param);
-		gst_pad_set_element_private (self->sinkpad[i], self->in_port[i]);
+		//gst_pad_set_element_private (self->sinkpad[i], self->in_port[i]);
 		if (set_omx_allocate) self->in_port[i]->omx_allocate = omx_allocate;
 		if (set_share_buffer) self->in_port[i]->share_buffer = share_buffer;
 	}
@@ -218,10 +218,9 @@ static void
 setup_input_buffer (GstOmxBaseFilter21 *self, GstBuffer *buf, int sink_num)
 {
 	int j;
-	gint i = 0;
+	gint i = sink_num;
 	if (GST_IS_OMXBUFFERTRANSPORT (buf))
 	{
-		i = sink_num;
 		OMX_PARAM_PORTDEFINITIONTYPE param;
 		GOmxPort *port, *in_port;
 		/* retrieve incoming buffer port information */
@@ -290,6 +289,14 @@ change_state (GstElement *element,
                 ret = GST_STATE_CHANGE_FAILURE;
                 goto leave;
             }
+            break;
+            
+        case GST_STATE_CHANGE_READY_TO_PAUSED:
+            gst_collect_pads_start(self->collectpads);
+            break;
+
+        case GST_STATE_CHANGE_PAUSED_TO_READY:
+            gst_collect_pads_stop(self->collectpads);
             break;
 
         default:
@@ -593,7 +600,10 @@ push_buffer (GstOmxBaseFilter21 *self,
 	}
     GST_BUFFER_DURATION (buf) = self->duration;
 	GST_BUFFER_TIMESTAMP(buf) = self->sink_camera_timestamp;
+	GST_DEBUG_OBJECT(self, "timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(self->sink_camera_timestamp));
 
+	self->sink_camera_timestamp += self->duration;
+	
     PRINT_BUFFER (self, buf);
     if (self->push_cb) {
         if (FALSE == self->push_cb (self, buf)) { gst_buffer_unref(buf); return GST_FLOW_OK; }
@@ -614,7 +624,7 @@ output_loop (gpointer data)
     GstOmxBaseFilter21 *self;
     GstFlowReturn ret = GST_FLOW_OK;
     GstOmxBaseFilter21Class *bclass;
-
+    
     pad = data;
     self = GST_OMX_BASE_FILTER21 (gst_pad_get_parent (pad));
     gomx = self->gomx;
@@ -696,6 +706,59 @@ leave:
     }
 
     gst_object_unref (self);
+    
+}
+
+static GstFlowReturn collected_pads(GstCollectPads *pads, GstOmxBaseFilter21 *self)
+{
+    GSList *item;
+    GstCollectData *collectdata;
+    GstFlowReturn ret = GST_FLOW_OK;
+    GOmxCore *gomx = self->gomx;
+    gint sink_number;
+    GstBuffer *buffers[2];
+
+    GST_DEBUG_OBJECT(self, "Collected pads !");
+
+    // Collect buffers
+    for( item = pads->data ; item != NULL ; item = item->next ) {
+        collectdata = (GstCollectData *) item->data;
+        
+        //FIXME Use collect data
+        if(strcmp(GST_PAD_NAME(collectdata->pad), "sink_00") == 0){
+    		sink_number=0;
+	    }
+	    else{
+		    sink_number=1;
+	    }
+	    
+	    buffers[sink_number] = gst_collect_pads_pop(pads, collectdata);
+    }
+
+    // Detect EOS
+    if( buffers[0] == NULL ) {
+        GST_INFO_OBJECT(self, "EOS");
+        gst_pad_push_event(self->srcpad, gst_event_new_eos());
+        return GST_FLOW_UNEXPECTED;
+    }
+
+    // Setup input ports if not done yet
+    if (G_LIKELY (gomx->omx_state != OMX_StateExecuting)) {
+      for( sink_number=0 ; sink_number<2 ; sink_number++ ) {
+        GST_INFO_OBJECT(self, "Setup port %d", sink_number);
+        setup_input_buffer (self, buffers[sink_number], sink_number);
+      }
+    }
+    
+    // Call chain foreach buffer
+    for( sink_number=0 ; sink_number<2 ; sink_number++ ) {
+        ret = pad_chain(self->sinkpad[sink_number], buffers[sink_number]);
+    }
+    
+    // Call output_loop after pad_chain
+    output_loop(self->srcpad);
+    
+    return ret;
 }
 
 static GstFlowReturn
@@ -714,7 +777,10 @@ pad_chain (GstPad *pad,
     self = GST_OMX_BASE_FILTER21 (GST_OBJECT_PARENT (pad));
 	if(strcmp(GST_PAD_NAME(pad), "sink_00") == 0){
 		sink_number=0;
-		self->sink_camera_timestamp = GST_BUFFER_TIMESTAMP(buf);
+		if( self->sink_camera_timestamp == GST_CLOCK_TIME_NONE ) {
+            self->sink_camera_timestamp = GST_BUFFER_TIMESTAMP(buf);
+        	GST_INFO_OBJECT(self, "init timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(self->sink_camera_timestamp));
+        }
 	}
 	else if(strcmp(GST_PAD_NAME(pad), "sink_01") == 0){
 		sink_number=1;
@@ -723,17 +789,17 @@ pad_chain (GstPad *pad,
 
     gomx = self->gomx;
 
-    GST_LOG_OBJECT (self, "begin: size=%u, state=%d", GST_BUFFER_SIZE (buf), gomx->omx_state);
+    GST_LOG_OBJECT (self, "begin: size=%u, state=%d, sink_number=%d", GST_BUFFER_SIZE (buf), gomx->omx_state, sink_number);
 	
-	if (G_LIKELY (gomx->omx_state != OMX_StateExecuting))
+	/*if (G_LIKELY (gomx->omx_state != OMX_StateExecuting))
     {
 		GST_INFO_OBJECT (self, "Begin - Port %d", sink_number);
-		setup_input_buffer (self, buf, sink_number);
-		sink_init++;
-		g_mutex_lock (self->ready_lock);
+		//setup_input_buffer (self, buf, sink_number);
+		//sink_init++;
+		//g_mutex_lock (self->ready_lock);
 		if(init_done == TRUE){
 			GST_INFO_OBJECT (self, "Init_done");
-			g_mutex_unlock(self->ready_lock);
+			//g_mutex_unlock(self->ready_lock);
 		}
 		if(init_done == TRUE){
 			sink_init = 0;
@@ -745,7 +811,8 @@ pad_chain (GstPad *pad,
 				usleep(1000);
 			}
 		}
-	}
+	}*/
+	
     if (G_UNLIKELY (gomx->omx_state == OMX_StateLoaded))
     {
 
@@ -777,7 +844,7 @@ pad_chain (GstPad *pad,
         if (gomx->omx_state == OMX_StateIdle)
         {
             self->ready = TRUE;
-           	gst_pad_start_task (self->srcpad, output_loop, self->srcpad);
+           	//gst_pad_start_task (self->srcpad, output_loop, self->srcpad);
         }
         
         if (gomx->omx_state != OMX_StateIdle)
@@ -791,13 +858,14 @@ pad_chain (GstPad *pad,
 		g_omx_core_start (gomx);
 		GST_INFO_OBJECT (self, "Release Port - %d", sink_number);
 		init_done = TRUE;
-		g_mutex_unlock (self->ready_lock);
+		//g_mutex_unlock (self->ready_lock);
 		if (gomx->omx_state != OMX_StateExecuting){
 			GST_INFO_OBJECT (self, "omx: executing FAILED !");
 			goto out_flushing;
 		
 		}
-	}	
+	}
+	
 	if (G_LIKELY (self->in_port[sink_number]->enabled))
 	{	      
 		
@@ -923,8 +991,8 @@ pad_event (GstPad *pad,
 
             g_omx_core_flush_stop (gomx);
 
-            if (self->ready)
-               	gst_pad_start_task (self->srcpad, output_loop, self->srcpad);
+            /*if (self->ready)
+               	gst_pad_start_task (self->srcpad, output_loop, self->srcpad);*/
 
             ret = TRUE;
             break;
@@ -972,7 +1040,7 @@ activate_push (GstPad *pad,
 					
                	g_omx_port_resume (self->out_port);
 
-                result = gst_pad_start_task (pad, output_loop, pad);
+                //result = gst_pad_start_task (pad, output_loop, pad);
             }
         }
     }
@@ -1083,6 +1151,8 @@ type_instance_init (GTypeInstance *instance,
 	self->out_port->port_index = self->output_port_index;
 	self->number_eos = 2;
     self->ready_lock = g_mutex_new ();
+    self->collectpads = gst_collect_pads_new();
+    gst_collect_pads_set_function(self->collectpads, &collected_pads, self);
 	for (i = 0; i < NUM_INPUTS; i++) {
 		sprintf(srcname, "sink_%02x", i);
 		self->sinkpad[i] =	gst_pad_new_from_template (gst_element_class_get_pad_template (element_class, srcname), srcname);
@@ -1091,6 +1161,7 @@ type_instance_init (GTypeInstance *instance,
 		gst_pad_set_event_function (self->sinkpad[i], bclass->pad_event);
 		gst_pad_set_setcaps_function (self->sinkpad[i], GST_DEBUG_FUNCPTR (sink_setcaps));
 		gst_element_add_pad (GST_ELEMENT (self), self->sinkpad[i]);
+		gst_collect_pads_add_pad(self->collectpads, self->sinkpad[i], sizeof(GstCollectData));
 	}
 	self->srcpad=
 		gst_pad_new_from_template (gst_element_class_get_pad_template (element_class, "src"), "src");

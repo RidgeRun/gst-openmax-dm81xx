@@ -23,6 +23,7 @@
 #define GSTOMX_BASE_FILTER21_H
 
 #include <gst/gst.h>
+#include <gst/base/gstcollectpads.h>
 
 G_BEGIN_DECLS
 
@@ -48,6 +49,8 @@ struct GstOmxBaseFilter21
 #define NUM_INPUTS 2
     GstPad *sinkpad[NUM_INPUTS];
     GstPad *srcpad;
+
+    GstCollectPads *collectpads;
 
     GOmxCore *gomx;
     GOmxPort *in_port[NUM_INPUTS];
