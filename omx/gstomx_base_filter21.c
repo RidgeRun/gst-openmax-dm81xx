@@ -218,10 +218,9 @@ static void
 setup_input_buffer (GstOmxBaseFilter21 *self, GstBuffer *buf, int sink_num)
 {
 	int j;
-	gint i = 0;
+	gint i = sink_num;
 	if (GST_IS_OMXBUFFERTRANSPORT (buf))
 	{
-		i = sink_num;
 		OMX_PARAM_PORTDEFINITIONTYPE param;
 		GOmxPort *port, *in_port;
 		/* retrieve incoming buffer port information */
