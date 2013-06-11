@@ -73,14 +73,14 @@ type_class_init (gpointer g_class,
 static GstCaps*
 create_src_caps (GstOmxBaseFilter *omx_base)
 {
-    GstCaps *caps;    
+    GstCaps *caps;
     GstOmxBaseVfpc *self;
     GstStructure *struc;
     int width, height;
     self = GST_OMX_BASE_VFPC (omx_base);
     caps = gst_pad_peer_get_caps (omx_base->srcpad);
-    
-    
+
+
     if (NULL == caps || gst_caps_is_empty (caps))
     {
         width = self->in_width;
@@ -96,13 +96,10 @@ create_src_caps (GstOmxBaseFilter *omx_base)
             gst_structure_get_int (s, "height", &height)))
         {
             width = self->in_width;
-            height = self->in_height;    
+            height = self->in_height;
         }
     }
-    /* Workaround: Make width multiple of 32, otherwise, scaler crashes */
-	width = (width+31) & 0xFFFFFFE0;
-	height = (height+31) & 0xFFFFFFE0;
-	
+
     caps = gst_caps_new_empty ();
     struc = gst_structure_new (("video/x-raw-yuv"),
             "width",  G_TYPE_INT, width,
@@ -138,33 +135,11 @@ omx_setup (GstOmxBaseFilter *omx_base)
 
     GST_LOG_OBJECT (self, "begin");
 
-    /* set the output cap */
+    /* Set the output caps */
     gst_pad_set_caps (omx_base->srcpad, create_src_caps (omx_base));
-    
-    /* Setting Memory type at input port to Raw Memory */
-    GST_LOG_OBJECT (self, "Setting input port to Raw memory");
-
-    _G_OMX_INIT_PARAM (&memTypeCfg);
-    memTypeCfg.nPortIndex = self->input_port_index;
-    memTypeCfg.eBufMemoryType = OMX_BUFFER_MEMORY_DEFAULT;    
-    err = OMX_SetParameter (gomx->omx_handle, OMX_TI_IndexParamBuffMemType, &memTypeCfg);
-
-    if (err != OMX_ErrorNone)
-        return;
-
-    /* Setting Memory type at output port to Raw Memory */
-    GST_LOG_OBJECT (self, "Setting output port to Raw memory");
-
-    _G_OMX_INIT_PARAM (&memTypeCfg);
-    memTypeCfg.nPortIndex = self->output_port_index;
-    memTypeCfg.eBufMemoryType = OMX_BUFFER_MEMORY_DEFAULT;
-    err = OMX_SetParameter (gomx->omx_handle, OMX_TI_IndexParamBuffMemType, &memTypeCfg);
-
-    if (err != OMX_ErrorNone)
-        return;
 
     /* Input port configuration. */
-    GST_LOG_OBJECT (self, "Setting port definition (input)");
+    GST_INFO_OBJECT (self, "Setting port definition (input)");
 
     G_OMX_PORT_GET_DEFINITION (omx_base->in_port, &paramPort);
     paramPort.format.video.nFrameWidth = (self->in_width+31) & 0xFFFFFFE0;
@@ -173,13 +148,14 @@ omx_setup (GstOmxBaseFilter *omx_base)
     paramPort.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
     paramPort.format.video.eColorFormat = OMX_COLOR_FormatYCbYCr;
     paramPort.nBufferSize = (paramPort.format.video.nStride * paramPort.format.video.nFrameHeight * 2);
+    paramPort.nBufferCountActual = 2;
     paramPort.nBufferAlignment = 0;
     paramPort.bBuffersContiguous = 0;
     G_OMX_PORT_SET_DEFINITION (omx_base->in_port, &paramPort);
     g_omx_port_setup (omx_base->in_port, &paramPort);
 
     /* Output port configuration. */
-    GST_LOG_OBJECT (self, "Setting port definition (output)");
+    GST_INFO_OBJECT (self, "Setting port definition (output)");
 
     G_OMX_PORT_GET_DEFINITION (omx_base->out_port, &paramPort);
     paramPort.format.video.nFrameWidth = (self->in_width+31) & 0xFFFFFFE0;
@@ -187,75 +163,105 @@ omx_setup (GstOmxBaseFilter *omx_base)
     paramPort.format.video.nStride = (self->in_width+31) & 0xFFFFFFE0;
     paramPort.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
     paramPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
-    paramPort.nBufferSize =  (paramPort.format.video.nStride * paramPort.format.video.nFrameHeight * 3 )>> 1;
-    paramPort.nBufferCountActual = 4;
+    paramPort.nBufferSize = (paramPort.format.video.nStride * paramPort.format.video.nFrameHeight * 3) >> 1;
+    paramPort.nBufferCountActual = 2;
     paramPort.nBufferAlignment = 0;
     paramPort.bBuffersContiguous = 0;
     G_OMX_PORT_SET_DEFINITION (omx_base->out_port, &paramPort);
     g_omx_port_setup (omx_base->out_port, &paramPort);
 
-    /* Set number of channles */
-    GST_LOG_OBJECT (self, "Setting number of channels");
+    /* Set number of channels */
+    GST_INFO_OBJECT (self, "Setting number of channels");
 
     _G_OMX_INIT_PARAM (&numChannels);
-    numChannels.nNumChannelsPerHandle = 16;    
-    err = OMX_SetParameter (gomx->omx_handle, 
+    numChannels.nNumChannelsPerHandle = 16;
+    err = OMX_SetParameter (gomx->omx_handle,
         (OMX_INDEXTYPE) OMX_TI_IndexParamVFPCNumChPerHandle, &numChannels);
 
     if (err != OMX_ErrorNone)
         return;
 
-    /* Set input channel resolution */
-    GST_LOG_OBJECT (self, "Setting channel resolution (input)");
+    int i = 0;
 
-    _G_OMX_INIT_PARAM (&chResolution);
-    chResolution.Frm0Width = (self->in_width+31) & 0xFFFFFFE0;
-    chResolution.Frm0Height = (self->in_height+31) & 0xFFFFFFE0;
-    chResolution.Frm0Pitch = ((self->in_width+31) & 0xFFFFFFE0)*2;
-    chResolution.Frm1Width = 0;
-    chResolution.Frm1Height = 0;
-    chResolution.Frm1Pitch = 0;
-    chResolution.FrmStartX = 0;
-    chResolution.FrmStartY = 0;
-    chResolution.FrmCropWidth = 0;
-    chResolution.FrmCropHeight = 0;
-    chResolution.eDir = OMX_DirInput;
-    chResolution.nChId = 0;
-    err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);
+    for( i = 0; i < numChannels.nNumChannelsPerHandle; ++i) {
 
-    if (err != OMX_ErrorNone)
+      /* Set input channel resolution */
+      GST_INFO_OBJECT (self, "Setting input resolution for channel #%d", i);
+
+      _G_OMX_INIT_PARAM (&chResolution);
+      chResolution.Frm0Width = (self->in_width+31) & 0xFFFFFFE0;
+      chResolution.Frm0Height = (self->in_height+31) & 0xFFFFFFE0;
+      chResolution.Frm0Pitch = ((self->in_width+31) & 0xFFFFFFE0)*2;
+      chResolution.Frm1Width = chResolution.Frm0Width; //0;
+      chResolution.Frm1Height = chResolution.Frm0Height; //0;
+      chResolution.Frm1Pitch = chResolution.Frm0Pitch; //0;
+      chResolution.FrmStartX = 0;
+      chResolution.FrmStartY = 0;
+      chResolution.FrmCropWidth = self->in_width;
+      chResolution.FrmCropHeight = self->in_height;
+      chResolution.eDir = OMX_DirInput;
+      chResolution.nChId = i;
+      err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);
+
+      if (err != OMX_ErrorNone)
         return;
 
-    /* Set output channel resolution */
-    GST_LOG_OBJECT (self, "Setting channel resolution (output)");
+      /* Set output channel resolution */
+      GST_INFO_OBJECT (self, "Setting output resolution for channel #%d", i);
 
-    _G_OMX_INIT_PARAM (&chResolution);
-    chResolution.Frm0Width = (self->in_width+31) & 0xFFFFFFE0;
-    chResolution.Frm0Height = (self->in_height+31) & 0xFFFFFFE0;
-    chResolution.Frm0Pitch = ((self->in_width+31) & 0xFFFFFFE0);
-    chResolution.Frm1Width = 0;
-    chResolution.Frm1Height = 0;
-    chResolution.Frm1Pitch = 0;
-    chResolution.FrmStartX = 0;
-    chResolution.FrmStartY = 0;
-    chResolution.FrmCropWidth = 0;
-    chResolution.FrmCropHeight = 0;
-    chResolution.eDir = OMX_DirOutput;
-    chResolution.nChId = 0;
-    err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);
+      _G_OMX_INIT_PARAM (&chResolution);
+      chResolution.Frm0Width = (self->in_width+31) & 0xFFFFFFE0;
+      chResolution.Frm0Height = (self->in_height+31) & 0xFFFFFFE0;
+      chResolution.Frm0Pitch = ((self->in_width+31) & 0xFFFFFFE0);
+      chResolution.Frm1Width = chResolution.Frm0Width; //0;
+      chResolution.Frm1Height = chResolution.Frm0Height; //0;
+      chResolution.Frm1Pitch = chResolution.Frm0Pitch; //0;
+      chResolution.FrmStartX = 0;
+      chResolution.FrmStartY = 0;
+      chResolution.FrmCropWidth = self->in_width;
+      chResolution.FrmCropHeight = self->in_height;
+      chResolution.eDir = OMX_DirOutput;
+      chResolution.nChId = i;
+      err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);
 
-    if (err != OMX_ErrorNone)
+      if (err != OMX_ErrorNone)
         return;
 
-    _G_OMX_INIT_PARAM (&algEnable);
-    algEnable.nPortIndex = 0;
-    algEnable.nChId = 0;
-    algEnable.bAlgBypass = 0;
+      /* int j = 0; */
+      /* for( j = 0; j < 2; ++j ) */
+      {
 
-    err = OMX_SetConfig (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexConfigAlgEnable, &algEnable);
+	/* OMX_PARAM_VIDEONOISEFILTERTYPE filterType; */
+	/* _G_OMX_INIT_PARAM (&filterType); */
+	/* filterType.nPortIndex = j; */
+	/* filterType.eMode = OMX_VideoNoiseFilterModeOff; */
+	/* err = OMX_SetConfig (gomx->omx_handle, (OMX_INDEXTYPE) OMX_IndexParamVideoNoiseFilter, &filterType); */
 
-    if (err != OMX_ErrorNone)
-        return;
+	/* if (err != OMX_ErrorNone) { */
+	/*   fprintf(stderr, "Could not set Filter Type for index %d\n", j); */
+	/* } */
+
+	_G_OMX_INIT_PARAM (&algEnable);
+	algEnable.nPortIndex = self->input_port_index;
+	algEnable.nChId = i;
+	algEnable.bAlgBypass = 1;
+
+	err = OMX_SetConfig (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexConfigAlgEnable, &algEnable);
+
+	if (err != OMX_ErrorNone)
+	  return;
+
+	_G_OMX_INIT_PARAM (&algEnable);
+	algEnable.nPortIndex = self->output_port_index;
+	algEnable.nChId = i;
+	algEnable.bAlgBypass = 1;
+
+	err = OMX_SetConfig (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexConfigAlgEnable, &algEnable);
+
+	if (err != OMX_ErrorNone)
+	  return;
+      }
+    }
 }
 
 static void
@@ -269,4 +275,3 @@ type_instance_init (GTypeInstance *instance,
     self->omx_setup = omx_setup;
     g_object_set (self, "port-index", 0, NULL);
 }
-
