@@ -65,8 +65,7 @@ struct GstOmxBaseFilter21
 	gint in_height[NUM_INPUTS];
 	gint in_stride[NUM_INPUTS];
     gint out_width, out_height, out_stride;
-    gint out_framerate_num;
-    gint out_framerate_denom;
+    GValue *out_framerate;
     gint x[NUM_INPUTS];
     gint y[NUM_INPUTS];
     GstOmxBaseFilter21Cb omx_setup;

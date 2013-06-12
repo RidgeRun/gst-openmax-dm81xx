@@ -97,14 +97,17 @@ src_setcaps (GstPad *pad, GstCaps *caps)
     }
 
     /* Set output framerate already calculated in sink_setcaps */
-    if( self->out_framerate_denom == 0 ) {
+    if( self->out_framerate == NULL ) {
         GST_WARNING_OBJECT (self, "unable to calculate output framerate");
         return FALSE;
     }
 
-    gst_structure_set(structure, "framerate", GST_TYPE_FRACTION, self->out_framerate_num, self->out_framerate_denom, NULL);
+    gint out_framerate_num = gst_value_get_fraction_numerator(self->out_framerate);
+    gint out_framerate_denom = gst_value_get_fraction_denominator(self->out_framerate);
+
+    gst_structure_set(structure, "framerate", GST_TYPE_FRACTION, out_framerate_num, out_framerate_denom, NULL);
     
-    GST_INFO_OBJECT(self, "output framerate is: %d/%d", self->out_framerate_num, self->out_framerate_denom);
+    GST_INFO_OBJECT(self, "output framerate is: %d/%d", out_framerate_num, out_framerate_denom);
 
     /* save the src caps later needed by omx transport buffer */
     if (self->out_port->caps)
@@ -162,13 +165,11 @@ sink_setcaps (GstPad *pad,
         sink_framerate = gst_structure_get_value (structure, "framerate");
         if( GST_VALUE_HOLDS_FRACTION(sink_framerate) )
         {
-            GValue out_framerate = G_VALUE_INIT;
-            gst_value_set_fraction(&out_framerate, self->out_framerate_num, self->out_framerate_denom);
-            if( self->out_framerate_denom == 0 || gst_value_compare(sink_framerate, &out_framerate) == GST_VALUE_LESS_THAN )
+            if( self->out_framerate == NULL || gst_value_compare(sink_framerate, self->out_framerate) == GST_VALUE_LESS_THAN )
             {
-                self->out_framerate_num = gst_value_get_fraction_numerator(sink_framerate);
-                self->out_framerate_denom = gst_value_get_fraction_denominator(sink_framerate);
-                self->duration = gst_util_uint64_scale_int(GST_SECOND, self->out_framerate_denom, self->out_framerate_num);
+                self->out_framerate = sink_framerate;
+                self->duration = gst_util_uint64_scale_int(GST_SECOND, gst_value_get_fraction_denominator(sink_framerate),
+                                                                       gst_value_get_fraction_numerator(sink_framerate));
             }
         }
     }
@@ -724,6 +725,7 @@ static GstFlowReturn collected_pads(GstCollectPads *pads, GstOmxBaseFilter21 *se
     GOmxCore *gomx = self->gomx;
     gint sink_number;
     GstBuffer *buffers[2];
+    gboolean eos = FALSE;
 
     GST_DEBUG_OBJECT(self, "Collected pads !");
 
@@ -740,11 +742,20 @@ static GstFlowReturn collected_pads(GstCollectPads *pads, GstOmxBaseFilter21 *se
 	    }
 	    
 	    buffers[sink_number] = gst_collect_pads_pop(pads, collectdata);
+	    
+	    if( buffers[sink_number] == NULL ) {
+	        eos = TRUE;
+	    }
     }
 
     // Detect EOS
-    if( buffers[0] == NULL ) {
+    if( eos == TRUE ) {
         GST_INFO_OBJECT(self, "EOS");
+        for( sink_number=0 ; sink_number<2 ; sink_number++ ) {
+            if( buffers[sink_number] ) {
+                gst_buffer_unref(buffers[sink_number]);
+            }
+        }
         gst_pad_push_event(self->srcpad, gst_event_new_eos());
         return GST_FLOW_UNEXPECTED;
     }
@@ -1174,7 +1185,7 @@ type_instance_init (GTypeInstance *instance,
 	gst_element_add_pad (GST_ELEMENT (self), self->srcpad);
     self->duration = GST_CLOCK_TIME_NONE;
     self->sink_camera_timestamp = GST_CLOCK_TIME_NONE;
-    self->out_framerate_num = self->out_framerate_denom = 0;
+    self->out_framerate = NULL;
 
     GST_LOG_OBJECT (self, "end");
 }
