@@ -65,10 +65,10 @@ struct GstOmxBaseFilter21
 	gint in_height[NUM_INPUTS];
 	gint in_stride[NUM_INPUTS];
     gint out_width, out_height, out_stride;
-    gint framerate_num[NUM_INPUTS];
+    gint out_framerate_num;
+    gint out_framerate_denom;
     gint x[NUM_INPUTS];
     gint y[NUM_INPUTS];
-    gint framerate_denom[NUM_INPUTS];
     GstOmxBaseFilter21Cb omx_setup;
     GstOmxBaseFilter21PushCb push_cb;
     GstFlowReturn last_pad_push_return;
