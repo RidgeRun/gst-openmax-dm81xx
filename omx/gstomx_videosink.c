@@ -76,6 +76,8 @@ generate_sink_template (void)
         g_value_init (&val, GST_TYPE_FOURCC);
         gst_value_set_fourcc (&val, GST_MAKE_FOURCC ('Y', 'U', 'Y', '2'));
         gst_value_list_append_value (&list, &val);
+	gst_value_set_fourcc (&val, GST_MAKE_FOURCC ('N', 'V', '1', '2'));
+        gst_value_list_append_value (&list, &val);
         gst_structure_set_value (struc, "format", &list);
 
         g_value_unset (&val);
@@ -242,7 +244,7 @@ omx_setup (GstBaseSink *gst_sink, GstCaps *caps)
     gint width;
     gint height;
     gint maxWidth, maxHeight, mode;
-	guint isLCD;
+    guint isLCD, isHDMI;
 
     sink = GST_OMX_VIDEOSINK (gst_sink);
     self = omx_base = GST_OMX_BASE_SINK (gst_sink);
@@ -259,12 +261,19 @@ omx_setup (GstBaseSink *gst_sink, GstCaps *caps)
     /* set input port definition */
     G_OMX_PORT_GET_DEFINITION (omx_base->in_port, &param);
 
-    param.nBufferSize = (width * height * 2);
+    if(!strcmp(sink->display_device,"SD")){
+	param.nBufferSize = (width * height * 3) >> 1;
+	param.format.video.nStride = width;
+	param.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
+    } else {
+	param.nBufferSize = (width * height * 2);
+	param.format.video.nStride = width * 2;
+	param.format.video.eColorFormat = OMX_COLOR_FormatYCbYCr;
+    }
+    param.nPortIndex = OMX_VFDC_INPUT_PORT_START_INDEX;
     param.format.video.nFrameWidth = width;
     param.format.video.nFrameHeight = height;
-	param.format.video.nStride    = width * 2;
     param.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
-    param.format.video.eColorFormat = OMX_COLOR_FormatYCbYCr;
     param.nBufferCountActual = 5;
 
     G_OMX_PORT_SET_DEFINITION (omx_base->in_port, &param);
@@ -280,10 +289,17 @@ omx_setup (GstBaseSink *gst_sink, GstCaps *caps)
       driverId.nDrvInstID = OMX_VIDEO_DISPLAY_ID_HD1;
       driverId.eDispVencMode = OMX_DC_MODE_CUSTOM;//mode;
       isLCD = 1;
+      isHDMI = 0;
+	} else if(!strcmp(sink->display_device,"SD")) {
+      driverId.nDrvInstID =  OMX_VIDEO_DISPLAY_ID_SD0;
+      driverId.eDispVencMode = OMX_DC_MODE_NTSC;
+	  isLCD = 0;
+	  isHDMI = 0;
 	} else {
       driverId.nDrvInstID = 0; /* on chip HDMI */
       driverId.eDispVencMode = mode;
 	  isLCD = 0;
+	  isHDMI = 1;
 	}
 
     OMX_SetParameter (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexParamVFDCDriverInstId, &driverId);
@@ -321,13 +337,13 @@ omx_setup (GstBaseSink *gst_sink, GstCaps *caps)
     _G_OMX_INIT_PARAM (&mosaicLayout);
     mosaicLayout.nPortIndex = 0;
 	
-  if (!isLCD) {
+  if (isHDMI) {
       mosaicLayout.sMosaicWinFmt[0].winStartX = sink->left;
       mosaicLayout.sMosaicWinFmt[0].winStartY = sink->top;
       mosaicLayout.sMosaicWinFmt[0].winWidth = width;
       mosaicLayout.sMosaicWinFmt[0].winHeight = height;
       mosaicLayout.sMosaicWinFmt[0].pitch[VFDC_YUV_INT_ADDR_IDX] = width * 2;
-  } else {
+  } else if(isLCD){
       /* For LCD Display, start the window at (0,0) */
       mosaicLayout.sMosaicWinFmt[0].winStartX = 0;
       mosaicLayout.sMosaicWinFmt[0].winStartY = 0;
@@ -338,6 +354,7 @@ omx_setup (GstBaseSink *gst_sink, GstCaps *caps)
       mosaicLayout.sMosaicWinFmt[0].pitch[VFDC_YUV_INT_ADDR_IDX] = 
                                          LCD_WIDTH * 2;  
   	}
+  if (isLCD || isHDMI){
     mosaicLayout.sMosaicWinFmt[0].dataFormat =  VFDC_DF_YUV422I_YVYU;
     mosaicLayout.sMosaicWinFmt[0].bpp = VFDC_BPP_BITS16;
     mosaicLayout.sMosaicWinFmt[0].priority = 0;
@@ -354,7 +371,7 @@ omx_setup (GstBaseSink *gst_sink, GstCaps *caps)
     port2Winmap.omxPortList[0] = OMX_VFDC_INPUT_PORT_START_INDEX + 0;
 
     OMX_SetConfig (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexConfigVFDCMosaicPort2WinMap, &port2Winmap);
-
+  }
     /* set default input memory to Raw */
     _G_OMX_INIT_PARAM (&memTypeCfg);
     memTypeCfg.nPortIndex = 0;
@@ -528,7 +545,8 @@ type_class_init (gpointer g_class,
                                     g_param_spec_string ("display-device", "Display Device", 
             "Display device to be used -"
             "\n\t\t\t HDMI "
-            "\n\t\t\t LCD ", "HDMI",G_PARAM_READWRITE));
+            "\n\t\t\t LCD "
+	    "\n\t\t\t SD ", "HDMI",G_PARAM_READWRITE));
 }
 
 static void

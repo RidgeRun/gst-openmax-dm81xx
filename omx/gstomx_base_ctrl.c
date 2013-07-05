@@ -128,6 +128,10 @@ gst_omx_ctrl_set_display_mode (GstOmxBaseCtrl *self)
       driverId.nDrvInstID = OMX_VIDEO_DISPLAY_ID_HD1;
       driverId.eDispVencMode = OMX_DC_MODE_CUSTOM;//mode;
       isLCD = 1;
+	} else if(!strcmp(self->display_device,"SD")) {
+      driverId.nDrvInstID =  OMX_VIDEO_DISPLAY_ID_SD0;
+      driverId.eDispVencMode =  gst_omx_display_string_to_mode(self->display_mode);
+	  isLCD = 0;
 	} else {
       driverId.nDrvInstID = 0; /* on chip HDMI */
       driverId.eDispVencMode = gst_omx_display_string_to_mode(self->display_mode);;
@@ -354,7 +358,8 @@ type_class_init (gpointer g_class,
                                     g_param_spec_string ("display-device", "Display Device", 
             "Display device to be used -"
             "\n\t\t\t HDMI "
-            "\n\t\t\t LCD ", "HDMI",G_PARAM_READWRITE));
+            "\n\t\t\t LCD "
+	    "\n\t\t\t SD ", "HDMI",G_PARAM_READWRITE));
 
     }
 }
