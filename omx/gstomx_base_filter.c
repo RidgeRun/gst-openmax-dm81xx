@@ -39,7 +39,8 @@ enum
     ARG_NUM_INPUT_BUFFERS,
     ARG_NUM_OUTPUT_BUFFERS,
 	ARG_NUM_FRAME_RATE,
-	ARG_GEN_TIMESTAMPS
+	ARG_GEN_TIMESTAMPS,
+	ARG_NUM_BUFFERS
 };
 
 static void init_interfaces (GType type);
@@ -229,6 +230,8 @@ finalize (GObject *obj)
     g_free (self->omx_library);
 
     g_mutex_free (self->ready_lock);
+	g_mutex_free (self->num_buffers_mutex);
+	g_cond_free(self->num_buffers_cond);
 
     G_OBJECT_CLASS (parent_class)->finalize (obj);
 }
@@ -304,6 +307,11 @@ set_property (GObject *obj,
 				G_OMX_PORT_SET_NOTIFY_DEFINITION(self->out_port, &pNotifyType);
 			}
 			break;
+		case ARG_NUM_BUFFERS:
+			{
+                self->num_buffers = g_value_get_int (value);
+			}
+			break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
             break;
@@ -354,6 +362,11 @@ get_property (GObject *obj,
 				OMX_PARAM_PORTDEFINITIONTYPE param;                
                 G_OMX_PORT_GET_DEFINITION (self->in_port, &param);
                 g_value_set_uint (value, param.format.video.xFramerate >> 16);
+			}
+			break;
+		case ARG_NUM_BUFFERS:
+			{
+				g_value_set_int (value, self->num_buffers);
 			}
 			break;
         default:
@@ -431,6 +444,10 @@ type_class_init (gpointer g_class,
                                          g_param_spec_uint ("framerate", "Frame rate",
                                                             "The number of OMX output buffers",
                                                             1, 60, 30, G_PARAM_READWRITE));
+		g_object_class_install_property (gobject_class, ARG_NUM_BUFFERS,
+                                         g_param_spec_int ("num-buffers", "Number of buffers",
+                                                            "The number of Buffers to be processed",
+                                                            0, G_MAXINT, 0, G_PARAM_READWRITE));
     }
 }
 
@@ -459,6 +476,14 @@ push_buffer (GstOmxBaseFilter *self,
     GST_LOG_OBJECT (self, "begin");
     ret = gst_pad_push (self->srcpad, buf);
     GST_LOG_OBJECT (self, "end");
+
+    if(self->num_buffers) {
+		 self->cont++;
+		 if(self->cont >= self->num_buffers) {
+			g_cond_signal(self->num_buffers_cond);
+			self->cont = 0;
+		 }
+	}
 
     return ret;
 }
@@ -570,7 +595,6 @@ pad_chain (GstPad *pad,
 
     self = GST_OMX_BASE_FILTER (GST_OBJECT_PARENT (pad));
 
-    //printf("INput!!\n");
     PRINT_BUFFER (self, buf);
     if(self->isFlushed == TRUE)
 	  if(self->filterType == FILTER_DECODER) {
@@ -750,7 +774,17 @@ pad_event (GstPad *pad,
                 #endif
             }
 
-            /* we tried, but it's up to us here */
+			/* In some cases the EoS event arrives before we encode the
+			 * desired amount of frames using the num_buffers property we
+             *  can be sure that we will encode this amount of frames (i.e.snapshots)
+             */
+            if(self->num_buffers){
+				g_mutex_lock(self->num_buffers_mutex);
+				g_cond_wait(self->num_buffers_cond,self->num_buffers_mutex);
+				g_mutex_unlock(self->num_buffers_mutex);
+			}
+
+			/* we tried, but it's up to us here */
             ret = gst_pad_push_event (self->srcpad, event);
             break;
 
@@ -937,6 +971,10 @@ type_instance_init (GTypeInstance *instance,
 	self->isFlushed = FALSE;
     self->filterType = FILTER_NONE;
     self->duration = GST_CLOCK_TIME_NONE;
+    self->num_buffers = 0;
+    self->cont = 0;
+    self->num_buffers_mutex = g_mutex_new();
+	self->num_buffers_cond  = g_cond_new();
 
     GST_LOG_OBJECT (self, "end");
 }

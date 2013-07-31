@@ -1,7 +1,11 @@
 /*
- * Copyright (C) 2007-2009 Nokia Corporation.
+ * Copyright (C) 2008-2009 Nokia Corporation.
  *
- * Author: Felipe Contreras <felipe.contreras@nokia.com>
+ * Author: David Soto <david.soto@ridgerun.com>
+ * Copyright (C) 2013 RidgeRun
+ *
+ * Based on the plugin version created by: 
+ *            Felipe Contreras <felipe.contreras@nokia.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,39 +23,31 @@
  *
  */
 
-#ifndef GSTOMX_JPEGENC_H
-#define GSTOMX_JPEGENC_H
+#ifndef GSTOMX_MJPEGENC_H
+#define GSTOMX_MJPEGENC_H
 
 #include <gst/gst.h>
 
-#include <config.h>
-
 G_BEGIN_DECLS
+#define GST_OMX_MJPEGENC(obj) (GstOmxMjpegEnc *) (obj)
+#define GST_OMX_MJPEGENC_TYPE (gst_omx_mjpegenc_get_type ())
+typedef struct GstOmxMjpegEnc GstOmxMjpegEnc;
+typedef struct GstOmxMjpegEncClass GstOmxMjpegEncClass;
 
-#define GST_OMX_JPEGENC(obj) (GstOmxJpegEnc *) (obj)
-#define GST_OMX_JPEGENC_TYPE (gst_omx_jpegenc_get_type ())
+#include "gstomx_base_videoenc.h"
 
-typedef struct GstOmxJpegEnc GstOmxJpegEnc;
-typedef struct GstOmxJpegEncClass GstOmxJpegEncClass;
-
-#include "gstomx_base_filter.h"
-
-struct GstOmxJpegEnc
+struct GstOmxMjpegEnc
 {
-    GstOmxBaseFilter omx_base;
-
-    gint framerate_num;
-    gint framerate_denom;
-    guint quality;
+  GstOmxBaseVideoEnc omx_base;
+  gint quality;
 };
 
-struct GstOmxJpegEncClass
+struct GstOmxMjpegEncClass
 {
-    GstOmxBaseFilterClass parent_class;
+  GstOmxBaseVideoEncClass parent_class;
 };
 
-GType gst_omx_jpegenc_get_type (void);
+GType gst_omx_mjpegenc_get_type (void);
 
 G_END_DECLS
-
-#endif /* GSTOMX_JPEGENC_H */
+#endif /* GSTOMX_MJPEGENC_H */
