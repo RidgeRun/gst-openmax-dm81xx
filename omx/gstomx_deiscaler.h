@@ -39,8 +39,13 @@ typedef struct GstOmxDeiScalerClass GstOmxHDeiScalerClass;
 struct GstOmxDeiScaler
 {
     GstOmxBaseVfpc2 omx_base;
-	gint framerate_divisor;
-	guint framecnt[NUM_OUTPUTS];
+    gint framerate_divisor;
+    gchar *crop_area;
+    guint startX;
+    guint startY;
+    guint cropWidth;
+    guint cropHeight;
+    guint framecnt[NUM_OUTPUTS];
 };
 
 struct GstOmxDeiScalerClass

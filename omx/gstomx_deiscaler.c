@@ -99,7 +99,7 @@ type_base_init (gpointer g_class)
 static GstCaps*
 create_src_caps (GstOmxBaseFilter2 *omx_base, int idx)
 {
-    GstCaps *caps;    
+    GstCaps *caps;
     GstOmxBaseVfpc2 *self;
     int width, height, rowstride;
     GstStructure *struc;
@@ -120,8 +120,8 @@ create_src_caps (GstOmxBaseFilter2 *omx_base, int idx)
         if (!(gst_structure_get_int (s, "width", &width) &&
             gst_structure_get_int (s, "height", &height))) {
             width = self->in_width;
-            height = self->in_height;    
-        } else 
+            height = self->in_height;
+        } else
 			gst_structure_get_int (s, "rowstride", &rowstride);
     }
 	/* Workaround: Make width multiple of 16, otherwise, scaler crashes */
@@ -154,7 +154,7 @@ create_src_caps (GstOmxBaseFilter2 *omx_base, int idx)
 	if (self->pixel_aspect_ratio_denom)
 	{
 		gst_structure_set (struc,
-				"pixel-aspect-ratio", GST_TYPE_FRACTION, self->pixel_aspect_ratio_num, 
+				"pixel-aspect-ratio", GST_TYPE_FRACTION, self->pixel_aspect_ratio_num,
 				self->pixel_aspect_ratio_denom, NULL);
 	}
 
@@ -167,6 +167,72 @@ create_src_caps (GstOmxBaseFilter2 *omx_base, int idx)
     return caps;
 }
 
+static gboolean omx_parse_crop_params (GstOmxBaseVfpc2 *self, int x, int y, int shift)
+{
+    /* Check if the crop-area parameter has been set */
+    if((GST_OMX_DEISCALER(self))->crop_area != NULL){
+      char* crop_param;
+      gboolean error = FALSE;
+      gchar omx_crop_area[20];
+
+      strcpy(omx_crop_area, (GST_OMX_DEISCALER(self))->crop_area);
+
+      /* Searching for startX param */
+      crop_param = strtok(omx_crop_area,",");
+      if(crop_param == NULL){
+	error = TRUE;
+      } else {
+	(GST_OMX_DEISCALER(self))->startX = atoi(crop_param);
+      }
+
+      /* Searching for startY param */
+      crop_param = strtok(NULL,"@");
+      if(crop_param == NULL){
+	error = TRUE;
+      } else {
+	(GST_OMX_DEISCALER(self))->startY = atoi(crop_param);
+      }
+
+      /* Searching for cropWidth param */
+      crop_param = strtok(NULL,"X");
+      if(crop_param == NULL){
+	error = TRUE;
+      } else {
+	(GST_OMX_DEISCALER(self))->cropWidth = atoi(crop_param);
+      }
+
+      /* Searching for cropHeight param */
+      crop_param = strtok(NULL,"");
+      if(crop_param == NULL){
+	error = TRUE;
+      } else {
+	(GST_OMX_DEISCALER(self))->cropHeight = atoi(crop_param);
+      }
+
+      GST_DEBUG_OBJECT(self,"Setting crop area to: (%d,%d)@%dx%d\n",
+		   (GST_OMX_DEISCALER(self))->startX, (GST_OMX_DEISCALER(self))->startY,
+		   (GST_OMX_DEISCALER(self))->cropWidth, (GST_OMX_DEISCALER(self))->cropHeight);
+
+      if(error){
+	GST_WARNING_OBJECT (self, "Cropping area is not valid. Format must be "
+	     "<startX>,<startY>@<cropWidth>x<cropHeight>. Setting crop area to default values.");
+	(GST_OMX_DEISCALER(self))->startX = x;
+	(GST_OMX_DEISCALER(self))->startY = y;
+	(GST_OMX_DEISCALER(self))->cropWidth = self->in_width;
+	(GST_OMX_DEISCALER(self))->cropHeight = self->in_height >> shift;
+      }
+
+      return FALSE;
+    } else {
+      (GST_OMX_DEISCALER(self))->startX = x;
+      (GST_OMX_DEISCALER(self))->startY = y;
+      (GST_OMX_DEISCALER(self))->cropWidth = self->in_width;
+      (GST_OMX_DEISCALER(self))->cropHeight = self->in_height >> shift;
+
+      return FALSE;
+    }
+}
+
 static void
 omx_setup (GstOmxBaseFilter2 *omx_base)
 {
@@ -177,38 +243,38 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     OMX_PARAM_VFPC_NUMCHANNELPERHANDLE numChannels;
     OMX_CONFIG_VIDCHANNEL_RESOLUTION chResolution;
     OMX_CONFIG_ALG_ENABLE algEnable;
-	OMX_CONFIG_SUBSAMPLING_FACTOR sSubSamplinginfo = {NULL};
+    OMX_CONFIG_SUBSAMPLING_FACTOR sSubSamplinginfo = {NULL};
 
     GstOmxBaseVfpc2 *self;
-	int i, x, y, shift = 0;
+    int i, x, y, shift = 0;
 
     gomx = (GOmxCore *) omx_base->gomx;
     self = GST_OMX_BASE_VFPC2 (omx_base);
 
     GST_LOG_OBJECT (self, "begin");
 
-	omx_base->input_fields_separately = self->interlaced;
+    omx_base->input_fields_separately = self->interlaced;
 
-	if (omx_base->duration != GST_CLOCK_TIME_NONE) {
-		omx_base->duration *= (GST_OMX_DEISCALER(self))->framerate_divisor;
-		self->framerate_denom *= (GST_OMX_DEISCALER(self))->framerate_divisor;
-		if (omx_base->input_fields_separately) {
-			// Halve the duration of output frame
-			omx_base->duration = omx_base->duration/2;
-			self->framerate_num *= 2;
-		}
-	}
+    if (omx_base->duration != GST_CLOCK_TIME_NONE) {
+      omx_base->duration *= (GST_OMX_DEISCALER(self))->framerate_divisor;
+      self->framerate_denom *= (GST_OMX_DEISCALER(self))->framerate_divisor;
+      if (omx_base->input_fields_separately) {
+	// Halve the duration of output frame
+	omx_base->duration = omx_base->duration/2;
+	self->framerate_num *= 2;
+      }
+    }
 
     /* set the output cap */
-	for (i=0 ; i<NUM_OUTPUTS; i++)
-    	gst_pad_set_caps (omx_base->srcpad[i], create_src_caps (omx_base, i));
-    
+    for (i=0 ; i<NUM_OUTPUTS; i++)
+      gst_pad_set_caps (omx_base->srcpad[i], create_src_caps (omx_base, i));
+
     /* Setting Memory type at input port to Raw Memory */
     GST_LOG_OBJECT (self, "Setting input port to Raw memory");
 
     _G_OMX_INIT_PARAM (&memTypeCfg);
     memTypeCfg.nPortIndex = omx_base->in_port->port_index;
-    memTypeCfg.eBufMemoryType = OMX_BUFFER_MEMORY_DEFAULT;    
+    memTypeCfg.eBufMemoryType = OMX_BUFFER_MEMORY_DEFAULT;
     err = OMX_SetParameter (gomx->omx_handle, OMX_TI_IndexParamBuffMemType, &memTypeCfg);
 
     if (err != OMX_ErrorNone)
@@ -217,17 +283,17 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     /* Setting Memory type at output port to Raw Memory */
     GST_LOG_OBJECT (self, "Setting output port to Raw memory");
 
-	for (i=0 ; i<NUM_OUTPUTS; i++) {
-		_G_OMX_INIT_PARAM (&memTypeCfg);
-		memTypeCfg.nPortIndex = omx_base->out_port[i]->port_index;
-		memTypeCfg.eBufMemoryType = OMX_BUFFER_MEMORY_DEFAULT;
-		err = OMX_SetParameter (gomx->omx_handle, OMX_TI_IndexParamBuffMemType, &memTypeCfg);
+    for (i=0 ; i<NUM_OUTPUTS; i++) {
+      _G_OMX_INIT_PARAM (&memTypeCfg);
+      memTypeCfg.nPortIndex = omx_base->out_port[i]->port_index;
+      memTypeCfg.eBufMemoryType = OMX_BUFFER_MEMORY_DEFAULT;
+      err = OMX_SetParameter (gomx->omx_handle, OMX_TI_IndexParamBuffMemType, &memTypeCfg);
 
-		if (err != OMX_ErrorNone)
-			return;
-	}
+      if (err != OMX_ErrorNone)
+	return;
+    }
 
-	if (self->interlaced) shift = 1;
+    if (self->interlaced) shift = 1;
     /* Input port configuration. */
     GST_LOG_OBJECT (self, "Setting port definition (input)");
 
@@ -265,8 +331,8 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     GST_LOG_OBJECT (self, "Setting number of channels");
 
     _G_OMX_INIT_PARAM (&numChannels);
-    numChannels.nNumChannelsPerHandle = 1;    
-    err = OMX_SetParameter (gomx->omx_handle, 
+    numChannels.nNumChannelsPerHandle = 1;
+    err = OMX_SetParameter (gomx->omx_handle,
         (OMX_INDEXTYPE) OMX_TI_IndexParamVFPCNumChPerHandle, &numChannels);
 
     if (err != OMX_ErrorNone)
@@ -275,6 +341,8 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     /* Set input channel resolution */
     GST_LOG_OBJECT (self, "Setting channel resolution (input)");
 
+    omx_parse_crop_params(self, x, y, shift);
+
     _G_OMX_INIT_PARAM (&chResolution);
     chResolution.Frm0Width = self->in_width;
     chResolution.Frm0Height = self->in_height >> shift;
@@ -282,10 +350,10 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     chResolution.Frm1Width = 0;
     chResolution.Frm1Height = 0;
     chResolution.Frm1Pitch = 0;
-    chResolution.FrmStartX = x;
-    chResolution.FrmStartY = y;
-    chResolution.FrmCropWidth = self->in_width;
-    chResolution.FrmCropHeight = self->in_height >> shift;
+    chResolution.FrmStartX = (GST_OMX_DEISCALER(self))->startX;
+    chResolution.FrmStartY = (GST_OMX_DEISCALER(self))->startY;
+    chResolution.FrmCropWidth = (GST_OMX_DEISCALER(self))->cropWidth;
+    chResolution.FrmCropHeight = (GST_OMX_DEISCALER(self))->cropHeight;
     chResolution.eDir = OMX_DirInput;
     chResolution.nChId = 0;
     err = OMX_SetConfig (gomx->omx_handle, OMX_TI_IndexConfigVidChResolution, &chResolution);
@@ -293,17 +361,17 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     if (err != OMX_ErrorNone)
         return;
 
-	_G_OMX_INIT_PARAM(&sSubSamplinginfo);
+    _G_OMX_INIT_PARAM(&sSubSamplinginfo);
 #ifdef LOCAL_FRAMERATE_DIV_IMPLEMENTATION
-	sSubSamplinginfo.nSubSamplingFactor = 1;
+    sSubSamplinginfo.nSubSamplingFactor = 1;
 #else
-	sSubSamplinginfo.nSubSamplingFactor = (GST_OMX_DEISCALER(self))->framerate_divisor;
+    sSubSamplinginfo.nSubSamplingFactor = (GST_OMX_DEISCALER(self))->framerate_divisor;
 #endif
-	err = OMX_SetConfig ( gomx->omx_handle, ( OMX_INDEXTYPE )
-			( OMX_TI_IndexConfigSubSamplingFactor ),
-			&sSubSamplinginfo );
-	if (err != OMX_ErrorNone)
-		return;
+    err = OMX_SetConfig ( gomx->omx_handle, ( OMX_INDEXTYPE )
+			  ( OMX_TI_IndexConfigSubSamplingFactor ),
+			  &sSubSamplinginfo );
+    if (err != OMX_ErrorNone)
+      return;
 
     /* Set output channel resolution */
     GST_LOG_OBJECT (self, "Setting channel resolution (output)");
@@ -341,7 +409,10 @@ enum
 {
     ARG_0,
     ARG_FRAMERATE_DIV,
+    ARG_CROP_AREA,
 };
+
+#define DEFAULT_CROP_AREA     NULL
 
 static void
 set_property (GObject *obj,
@@ -354,6 +425,10 @@ set_property (GObject *obj,
         case ARG_FRAMERATE_DIV:
             (GST_OMX_DEISCALER(obj))->framerate_divisor = g_value_get_uint (value);
             break;
+        case ARG_CROP_AREA:
+	    (GST_OMX_DEISCALER(obj))->crop_area =
+	      g_ascii_strup(g_value_get_string(value), -1);
+	    break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
             break;
@@ -371,6 +446,9 @@ get_property (GObject *obj,
         case ARG_FRAMERATE_DIV:
             g_value_set_uint (value, (GST_OMX_DEISCALER(obj))->framerate_divisor);
             break;
+        case ARG_CROP_AREA:
+	    g_value_set_string(value, (GST_OMX_DEISCALER(obj))->crop_area);
+	    break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
             break;
@@ -391,6 +469,10 @@ type_class_init (gpointer g_class,
 			g_param_spec_uint ("framerate-divisor", "Output framerate divisor",
 				"Output framerate = (2 * input_framerate) / framerate_divisor",
 				1, 60, 1, G_PARAM_READWRITE));
+	g_object_class_install_property (gobject_class, ARG_CROP_AREA,
+			g_param_spec_string ("crop-area", "Select the crop area.",
+			      "Selects the crop area using the format <startX>,<startY>@"
+			      "<cropWidth>x<cropHeight>", DEFAULT_CROP_AREA, G_PARAM_READWRITE));
 }
 
 static gboolean push_cb (GstOmxBaseFilter2 *self, GstBuffer *buf)
@@ -427,6 +509,6 @@ type_instance_init (GTypeInstance *instance,
 #endif
 
 	(GST_OMX_DEISCALER(instance))->framerate_divisor = 1;
+	(GST_OMX_DEISCALER(instance))->crop_area = DEFAULT_CROP_AREA;
 	for (i=0; i<NUM_OUTPUTS; i++) (GST_OMX_DEISCALER(instance))->framecnt[i] = 0;
 }
-
