@@ -74,7 +74,6 @@ struct GstOmxBaseFilter21
     GstBuffer *codec_data;
     GstClockTime duration;
     GstClockTime last_buf_timestamp;
-    GstClockTime sink_camera_timestamp;
 	gint port_index, input_port_index[NUM_INPUTS], output_port_index;
 	int number_eos;
 

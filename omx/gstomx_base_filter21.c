@@ -81,7 +81,7 @@ src_setcaps (GstPad *pad, GstCaps *caps)
     self = GST_OMX_BASE_FILTER21 (GST_PAD_PARENT (pad));
     structure = gst_caps_get_structure (caps, 0);
 
-    GST_INFO_OBJECT (self, "setcaps (src): %" GST_PTR_FORMAT, caps);
+    GST_DEBUG_OBJECT (self, "setcaps (src): %" GST_PTR_FORMAT, caps);
     g_return_val_if_fail (caps, FALSE);
     g_return_val_if_fail (gst_caps_is_fixed (caps), FALSE);
 
@@ -107,7 +107,7 @@ src_setcaps (GstPad *pad, GstCaps *caps)
 
     gst_structure_set(structure, "framerate", GST_TYPE_FRACTION, out_framerate_num, out_framerate_denom, NULL);
     
-    GST_INFO_OBJECT(self, "output framerate is: %d/%d", out_framerate_num, out_framerate_denom);
+    GST_DEBUG_OBJECT(self, "output framerate is: %d/%d", out_framerate_num, out_framerate_denom);
 
     /* save the src caps later needed by omx transport buffer */
     if (self->out_port->caps)
@@ -138,8 +138,8 @@ sink_setcaps (GstPad *pad,
 		sink_number=1;
 	}
     gomx = (GOmxCore *) self->gomx;
-	GST_INFO_OBJECT (self, "setcaps (sink): %d", sink_number);
-    GST_INFO_OBJECT (self, "setcaps (sink): %" GST_PTR_FORMAT, caps);
+	GST_DEBUG_OBJECT (self, "setcaps (sink): %d", sink_number);
+    GST_DEBUG_OBJECT (self, "setcaps (sink): %" GST_PTR_FORMAT, caps);
 	
     g_return_val_if_fail (caps, FALSE);
     g_return_val_if_fail (gst_caps_is_fixed (caps), FALSE);
@@ -268,7 +268,7 @@ setup_input_buffer (GstOmxBaseFilter21 *self, GstBuffer *buf, int sink_num)
 	/* ask openmax to allocate input buffer */
 	self->in_port[i]->omx_allocate = TRUE;
 	self->in_port[i]->always_copy = TRUE;
-	GST_INFO_OBJECT (self, "omx: setup input buffer - end");
+	GST_DEBUG_OBJECT (self, "omx: setup input buffer - end");
 }
 
 static GstStateChangeReturn
@@ -286,7 +286,7 @@ change_state (GstElement *element,
 	printf("begin: changing state %s -> %s\n",
                      gst_element_state_get_name (GST_STATE_TRANSITION_CURRENT (transition)),
                      gst_element_state_get_name (GST_STATE_TRANSITION_NEXT (transition)));
-    GST_INFO_OBJECT (self, "begin: changing state %s -> %s",
+    GST_DEBUG_OBJECT (self, "begin: changing state %s -> %s",
                      gst_element_state_get_name (GST_STATE_TRANSITION_CURRENT (transition)),
                      gst_element_state_get_name (GST_STATE_TRANSITION_NEXT (transition)));
 
@@ -353,7 +353,7 @@ change_state (GstElement *element,
     }
 
 leave:
-    GST_LOG_OBJECT (self, "end");
+    GST_DEBUG_OBJECT (self, "end");
 
     return ret;
 }
@@ -608,9 +608,12 @@ push_buffer (GstOmxBaseFilter21 *self,
 	if(GST_GET_OMXPORT(buf) != self->out_port){
 		return ret;
 	}
+
     GST_BUFFER_DURATION (buf) = self->duration;
-	GST_BUFFER_TIMESTAMP(buf) = self->sink_camera_timestamp;
-	GST_DEBUG_OBJECT(self, "timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(self->sink_camera_timestamp));
+    GST_INFO_OBJECT(self, "self->last_buf_timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(self->last_buf_timestamp));
+    GST_BUFFER_TIMESTAMP(buf) = self->last_buf_timestamp + self->duration;
+    GST_INFO_OBJECT(self, "timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(GST_BUFFER_TIMESTAMP(buf)));
+
 
     PRINT_BUFFER (self, buf);
     if (self->push_cb) {
@@ -681,7 +684,7 @@ output_loop (gpointer data)
             {
                 GstBuffer *buf = GST_BUFFER (obj);
                 ret = bclass->push_buffer (self, buf);
-                GST_DEBUG_OBJECT (self, "ret=%s", gst_flow_get_name (ret));
+                GST_INFO_OBJECT (self, "ret=%s", gst_flow_get_name (ret));
 				// HACK!! Dont care if one of the output pads are not connected
                 ret = GST_FLOW_OK;
             }
@@ -727,7 +730,7 @@ static GstFlowReturn collected_pads(GstCollectPads *pads, GstOmxBaseFilter21 *se
     GstBuffer *buffers[2];
     gboolean eos = FALSE;
 
-    GST_DEBUG_OBJECT(self, "Collected pads !");
+    GST_INFO_OBJECT(self, "Collected pads !");
 
     // Collect buffers
     for( item = pads->data ; item != NULL ; item = item->next ) {
@@ -795,7 +798,7 @@ pad_chain (GstPad *pad,
     self = GST_OMX_BASE_FILTER21 (GST_OBJECT_PARENT (pad));
 	if(strcmp(GST_PAD_NAME(pad), "sink_00") == 0){
 		sink_number=0;
-        self->sink_camera_timestamp = GST_BUFFER_TIMESTAMP(buf);
+        self->last_buf_timestamp=GST_BUFFER_TIMESTAMP(buf);
 	}
 	else if(strcmp(GST_PAD_NAME(pad), "sink_01") == 0){
 		sink_number=1;
@@ -804,7 +807,7 @@ pad_chain (GstPad *pad,
 
     gomx = self->gomx;
 
-    GST_LOG_OBJECT (self, "begin: size=%u, state=%d, sink_number=%d", GST_BUFFER_SIZE (buf), gomx->omx_state, sink_number);
+    GST_INFO_OBJECT (self, "begin: size=%u, state=%d, sink_number=%d", GST_BUFFER_SIZE (buf), gomx->omx_state, sink_number);
 	
 	/*if (G_LIKELY (gomx->omx_state != OMX_StateExecuting))
     {
@@ -930,7 +933,7 @@ pad_chain (GstPad *pad,
 	return ret;
 leave:
 
-    GST_LOG_OBJECT (self, "end");
+    GST_INFO_OBJECT (self, "end");
 
     return ret;
 
@@ -1024,7 +1027,7 @@ pad_event (GstPad *pad,
             break;
     }
 
-    GST_LOG_OBJECT (self, "end");
+    GST_INFO_OBJECT (self, "end");
 
     return ret;
 }
@@ -1041,7 +1044,7 @@ activate_push (GstPad *pad,
 
     if (active)
     {
-        GST_DEBUG_OBJECT (self, "activate");
+        GST_INFO_OBJECT (self, "activate");
         self->last_pad_push_return = GST_FLOW_OK;
 
         /* we do not start the task yet if the pad is not connected */
@@ -1061,7 +1064,7 @@ activate_push (GstPad *pad,
     }
     else
     {
-        GST_DEBUG_OBJECT (self, "deactivate");
+        GST_INFO_OBJECT (self, "deactivate");
 
         if (self->ready)
         {
@@ -1146,7 +1149,7 @@ type_instance_init (GTypeInstance *instance,
 
     self = GST_OMX_BASE_FILTER21 (instance);
 
-    GST_LOG_OBJECT (self, "begin");
+    GST_INFO_OBJECT (self, "begin");
 
 
     self->gomx = g_omx_core_new (self, g_class);
@@ -1184,10 +1187,9 @@ type_instance_init (GTypeInstance *instance,
 	gst_pad_set_setcaps_function (self->srcpad, GST_DEBUG_FUNCPTR (src_setcaps));
 	gst_element_add_pad (GST_ELEMENT (self), self->srcpad);
     self->duration = GST_CLOCK_TIME_NONE;
-    self->sink_camera_timestamp = GST_CLOCK_TIME_NONE;
     self->out_framerate = NULL;
-
-    GST_LOG_OBJECT (self, "end");
+    self->last_buf_timestamp = GST_CLOCK_TIME_NONE;
+    GST_INFO_OBJECT (self, "end");
 }
 
 static void
