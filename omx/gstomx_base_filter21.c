@@ -610,10 +610,9 @@ push_buffer (GstOmxBaseFilter21 *self,
 	}
 
     GST_BUFFER_DURATION (buf) = self->duration;
-    GST_INFO_OBJECT(self, "self->last_buf_timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(self->last_buf_timestamp));
+    GST_DEBUG_OBJECT(self, "self->last_buf_timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(self->last_buf_timestamp));
     GST_BUFFER_TIMESTAMP(buf) = self->last_buf_timestamp + self->duration;
-    GST_INFO_OBJECT(self, "timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(GST_BUFFER_TIMESTAMP(buf)));
-
+    GST_DEBUG_OBJECT(self, "timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(GST_BUFFER_TIMESTAMP(buf)));
 
     PRINT_BUFFER (self, buf);
     if (self->push_cb) {
@@ -684,14 +683,14 @@ output_loop (gpointer data)
             {
                 GstBuffer *buf = GST_BUFFER (obj);
                 ret = bclass->push_buffer (self, buf);
-                GST_INFO_OBJECT (self, "ret=%s", gst_flow_get_name (ret));
+                GST_DEBUG_OBJECT (self, "ret=%s", gst_flow_get_name (ret));
 				// HACK!! Dont care if one of the output pads are not connected
                 ret = GST_FLOW_OK;
             }
         }
         else if (GST_IS_EVENT (obj))
         {
-            GST_INFO_OBJECT (self, "got eos");
+            GST_DEBUG_OBJECT (self, "got eos");
             gst_pad_push_event (pad, obj);
             ret = GST_FLOW_UNEXPECTED;
             goto leave;
@@ -705,13 +704,13 @@ leave:
 
     if (gomx->omx_error != OMX_ErrorNone)
     {
-        GST_INFO_OBJECT (self, "omx_error=%s", g_omx_error_to_str (gomx->omx_error));
+        GST_DEBUG_OBJECT (self, "omx_error=%s", g_omx_error_to_str (gomx->omx_error));
         ret = GST_FLOW_ERROR;
     }
 
     if (ret != GST_FLOW_OK)
     {
-        GST_INFO_OBJECT (self, "pause task, reason:  %s",
+        GST_DEBUG_OBJECT (self, "pause task, reason:  %s",
                          gst_flow_get_name (ret));
         gst_pad_pause_task (pad);
     }
@@ -730,7 +729,7 @@ static GstFlowReturn collected_pads(GstCollectPads *pads, GstOmxBaseFilter21 *se
     GstBuffer *buffers[2];
     gboolean eos = FALSE;
 
-    GST_INFO_OBJECT(self, "Collected pads !");
+    GST_DEBUG_OBJECT(self, "Collected pads !");
 
     // Collect buffers
     for( item = pads->data ; item != NULL ; item = item->next ) {
@@ -753,7 +752,7 @@ static GstFlowReturn collected_pads(GstCollectPads *pads, GstOmxBaseFilter21 *se
 
     // Detect EOS
     if( eos == TRUE ) {
-        GST_INFO_OBJECT(self, "EOS");
+        GST_DEBUG_OBJECT(self, "EOS");
         for( sink_number=0 ; sink_number<2 ; sink_number++ ) {
             if( buffers[sink_number] ) {
                 gst_buffer_unref(buffers[sink_number]);
@@ -766,7 +765,7 @@ static GstFlowReturn collected_pads(GstCollectPads *pads, GstOmxBaseFilter21 *se
     // Setup input ports if not done yet
     if (G_LIKELY (gomx->omx_state != OMX_StateExecuting)) {
       for( sink_number=0 ; sink_number<2 ; sink_number++ ) {
-        GST_INFO_OBJECT(self, "Setup port %d", sink_number);
+        GST_DEBUG_OBJECT(self, "Setup port %d", sink_number);
         setup_input_buffer (self, buffers[sink_number], sink_number);
       }
     }
@@ -807,7 +806,7 @@ pad_chain (GstPad *pad,
 
     gomx = self->gomx;
 
-    GST_INFO_OBJECT (self, "begin: size=%u, state=%d, sink_number=%d", GST_BUFFER_SIZE (buf), gomx->omx_state, sink_number);
+    GST_DEBUG_OBJECT (self, "begin: size=%u, state=%d, sink_number=%d", GST_BUFFER_SIZE (buf), gomx->omx_state, sink_number);
 	
 	/*if (G_LIKELY (gomx->omx_state != OMX_StateExecuting))
     {
@@ -834,7 +833,7 @@ pad_chain (GstPad *pad,
     if (G_UNLIKELY (gomx->omx_state == OMX_StateLoaded))
     {
 
-        GST_INFO_OBJECT (self, "omx: prepare");
+        GST_DEBUG_OBJECT (self, "omx: prepare");
         
         /** @todo this should probably go after doing preparations. */
         if (self->omx_setup)
@@ -844,11 +843,11 @@ pad_chain (GstPad *pad,
         
         /* enable input port */
         for(i=0;i<NUM_INPUTS;i++){
-			GST_INFO_OBJECT (self,"Enable Port %d",self->in_port[i]->port_index);
+			GST_DEBUG_OBJECT (self,"Enable Port %d",self->in_port[i]->port_index);
 			OMX_SendCommand (gomx->omx_handle, OMX_CommandPortEnable, self->in_port[i]->port_index, NULL);
 			g_sem_down (self->in_port[i]->core->port_sem);
 		}
-		GST_INFO_OBJECT (self,"Enable Port %d",self->out_port->port_index);
+		GST_DEBUG_OBJECT (self,"Enable Port %d",self->out_port->port_index);
 		/* enable output port */
 		OMX_SendCommand (gomx->omx_handle,OMX_CommandPortEnable, self->out_port->port_index, NULL);
 		g_sem_down (self->out_port->core->port_sem);
@@ -868,17 +867,17 @@ pad_chain (GstPad *pad,
         if (gomx->omx_state != OMX_StateIdle)
             goto out_flushing;
         
-        GST_INFO_OBJECT (self, "omx: end state Loaded");    
+        GST_DEBUG_OBJECT (self, "omx: end state Loaded");    
     }
     
     if (G_UNLIKELY (gomx->omx_state == OMX_StateIdle))
 	{
 		g_omx_core_start (gomx);
-		GST_INFO_OBJECT (self, "Release Port - %d", sink_number);
+		GST_DEBUG_OBJECT (self, "Release Port - %d", sink_number);
 		init_done = TRUE;
 		//g_mutex_unlock (self->ready_lock);
 		if (gomx->omx_state != OMX_StateExecuting){
-			GST_INFO_OBJECT (self, "omx: executing FAILED !");
+			GST_DEBUG_OBJECT (self, "omx: executing FAILED !");
 			goto out_flushing;
 		
 		}
@@ -900,7 +899,7 @@ pad_chain (GstPad *pad,
 				!(gomx->omx_state == OMX_StateExecuting ||
 				gomx->omx_state == OMX_StatePause))
 			{
-				GST_INFO_OBJECT (self, "last_pad_push_return=%d", self->last_pad_push_return);
+				GST_DEBUG_OBJECT (self, "last_pad_push_return=%d", self->last_pad_push_return);
 				goto out_flushing;
 			}
 			sent = g_omx_port_send (self->in_port[sink_number], buf);
@@ -933,7 +932,7 @@ pad_chain (GstPad *pad,
 	return ret;
 leave:
 
-    GST_INFO_OBJECT (self, "end");
+    GST_DEBUG_OBJECT (self, "end");
 
     return ret;
 
@@ -975,7 +974,7 @@ pad_event (GstPad *pad,
     self = GST_OMX_BASE_FILTER21 (GST_OBJECT_PARENT (pad));
     gomx = self->gomx;
 
-    GST_INFO_OBJECT (self, "begin: event=%s", GST_EVENT_TYPE_NAME (event));
+    GST_DEBUG_OBJECT (self, "begin: event=%s", GST_EVENT_TYPE_NAME (event));
 
     switch (GST_EVENT_TYPE (event))
     {
@@ -1027,7 +1026,7 @@ pad_event (GstPad *pad,
             break;
     }
 
-    GST_INFO_OBJECT (self, "end");
+    GST_DEBUG_OBJECT (self, "end");
 
     return ret;
 }
@@ -1044,7 +1043,7 @@ activate_push (GstPad *pad,
 
     if (active)
     {
-        GST_INFO_OBJECT (self, "activate");
+        GST_DEBUG_OBJECT (self, "activate");
         self->last_pad_push_return = GST_FLOW_OK;
 
         /* we do not start the task yet if the pad is not connected */
@@ -1064,7 +1063,7 @@ activate_push (GstPad *pad,
     }
     else
     {
-        GST_INFO_OBJECT (self, "deactivate");
+        GST_DEBUG_OBJECT (self, "deactivate");
 
         if (self->ready)
         {
@@ -1149,7 +1148,7 @@ type_instance_init (GTypeInstance *instance,
 
     self = GST_OMX_BASE_FILTER21 (instance);
 
-    GST_INFO_OBJECT (self, "begin");
+    GST_DEBUG_OBJECT (self, "begin");
 
 
     self->gomx = g_omx_core_new (self, g_class);
@@ -1189,7 +1188,7 @@ type_instance_init (GTypeInstance *instance,
     self->duration = GST_CLOCK_TIME_NONE;
     self->out_framerate = NULL;
     self->last_buf_timestamp = GST_CLOCK_TIME_NONE;
-    GST_INFO_OBJECT (self, "end");
+    GST_DEBUG_OBJECT (self, "end");
 }
 
 static void
