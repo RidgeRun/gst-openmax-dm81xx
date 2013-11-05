@@ -238,8 +238,8 @@ omx_setup (GstBaseSink *gst_sink, GstCaps *caps)
     OMX_PARAM_VFDC_CREATEMOSAICLAYOUT mosaicLayout;
     OMX_CONFIG_VFDC_MOSAICLAYOUT_PORT2WINMAP port2Winmap;
     OMX_PARAM_BUFFER_MEMORYTYPE memTypeCfg;
-	OMX_PARAM_VFDC_FIELD_MERGE_INFO fieldMergeInfo;
-	OMX_PARAM_DC_CUSTOM_MODE_INFO customModeInfo;
+    OMX_PARAM_VFDC_FIELD_MERGE_INFO fieldMergeInfo;
+    OMX_PARAM_DC_CUSTOM_MODE_INFO customModeInfo;
     GstStructure *structure;
     gint width;
     gint height;
@@ -262,13 +262,13 @@ omx_setup (GstBaseSink *gst_sink, GstCaps *caps)
     G_OMX_PORT_GET_DEFINITION (omx_base->in_port, &param);
 
     if(!strcmp(sink->display_device,"SD")){
-	param.nBufferSize = (width * height * 3) >> 1;
-	param.format.video.nStride = width;
-	param.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
+      param.nBufferSize = (width * height * 3) >> 1;
+      param.format.video.nStride = width;
+      param.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
     } else {
-	param.nBufferSize = (width * height * 2);
-	param.format.video.nStride = width * 2;
-	param.format.video.eColorFormat = OMX_COLOR_FormatYCbYCr;
+      param.nBufferSize = (width * height * 2);
+      param.format.video.nStride = width * 2;
+      param.format.video.eColorFormat = OMX_COLOR_FormatYCbYCr;
     }
     param.nPortIndex = OMX_VFDC_INPUT_PORT_START_INDEX;
     param.format.video.nFrameWidth = width;
@@ -285,105 +285,101 @@ omx_setup (GstBaseSink *gst_sink, GstCaps *caps)
     /* set display driver mode */
     _G_OMX_INIT_PARAM (&driverId);
 	
-	if(!strcmp(sink->display_device,"LCD")) {
+    if(!strcmp(sink->display_device,"LCD")) {
       driverId.nDrvInstID = OMX_VIDEO_DISPLAY_ID_HD1;
       driverId.eDispVencMode = OMX_DC_MODE_CUSTOM;//mode;
       isLCD = 1;
       isHDMI = 0;
-	} else if(!strcmp(sink->display_device,"SD")) {
+    } else if(!strcmp(sink->display_device,"SD")) {
       driverId.nDrvInstID =  OMX_VIDEO_DISPLAY_ID_SD0;
-      driverId.eDispVencMode = OMX_DC_MODE_NTSC;
-	  isLCD = 0;
-	  isHDMI = 0;
-	} else {
+      driverId.eDispVencMode = mode;
+      isLCD = 0;
+      isHDMI = 0;
+    } else {
       driverId.nDrvInstID = 0; /* on chip HDMI */
       driverId.eDispVencMode = mode;
-	  isLCD = 0;
-	  isHDMI = 1;
-	}
+      isLCD = 0;
+      isHDMI = 1;
+    }
 
     OMX_SetParameter (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexParamVFDCDriverInstId, &driverId);
 
 #if 1
     if(isLCD) {
-		 _G_OMX_INIT_PARAM (&customModeInfo);
+      _G_OMX_INIT_PARAM (&customModeInfo);
 		
-		customModeInfo.width = LCD_WIDTH;
-		customModeInfo.height = LCD_HEIGHT;
-		customModeInfo.scanFormat = OMX_SF_PROGRESSIVE;
-		customModeInfo.pixelClock = LCD_PIXEL_CLOCK;
-		customModeInfo.hFrontPorch = LCD_H_FRONT_PORCH;
-		customModeInfo.hBackPorch = LCD_H_BACK_PORCH;
-		customModeInfo.hSyncLen = LCD_H_SYNC_LENGTH;
-		customModeInfo.vFrontPorch = LCD_V_FRONT_PORCH;
-		customModeInfo.vBackPorch = LCD_V_BACK_PORCH;
-		customModeInfo.vSyncLen = LCD_V_SYNC_LENGTH;
-		/*Configure Display component and Display controller with these parameters*/
+      customModeInfo.width = LCD_WIDTH;
+      customModeInfo.height = LCD_HEIGHT;
+      customModeInfo.scanFormat = OMX_SF_PROGRESSIVE;
+      customModeInfo.pixelClock = LCD_PIXEL_CLOCK;
+      customModeInfo.hFrontPorch = LCD_H_FRONT_PORCH;
+      customModeInfo.hBackPorch = LCD_H_BACK_PORCH;
+      customModeInfo.hSyncLen = LCD_H_SYNC_LENGTH;
+      customModeInfo.vFrontPorch = LCD_V_FRONT_PORCH;
+      customModeInfo.vBackPorch = LCD_V_BACK_PORCH;
+      customModeInfo.vSyncLen = LCD_V_SYNC_LENGTH;
+      /*Configure Display component and Display controller with these parameters*/
 	
-		OMX_SetParameter (gomx->omx_handle, (OMX_INDEXTYPE)
-								   OMX_TI_IndexParamVFDCCustomModeInfo,
-								   &customModeInfo); 
+      OMX_SetParameter (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexParamVFDCCustomModeInfo, &customModeInfo); 
     }
 #endif
 
     /* center the video */
     if (!sink->left && !sink->top)
     {
-        sink->left = ((maxWidth - width) / 2) & ~1;         
-        sink->top = ((maxHeight - height) / 2) & ~1;
+      sink->left = ((maxWidth - width) / 2) & ~1;         
+      sink->top = ((maxHeight - height) / 2) & ~1;
     }
 
     /* set mosiac window information */
     _G_OMX_INIT_PARAM (&mosaicLayout);
     mosaicLayout.nPortIndex = 0;
 	
-  if (isHDMI) {
+    if (isHDMI) {
       mosaicLayout.sMosaicWinFmt[0].winStartX = sink->left;
       mosaicLayout.sMosaicWinFmt[0].winStartY = sink->top;
       mosaicLayout.sMosaicWinFmt[0].winWidth = width;
       mosaicLayout.sMosaicWinFmt[0].winHeight = height;
       mosaicLayout.sMosaicWinFmt[0].pitch[VFDC_YUV_INT_ADDR_IDX] = width * 2;
-  } else if(isLCD){
+    } else if(isLCD){
       /* For LCD Display, start the window at (0,0) */
       mosaicLayout.sMosaicWinFmt[0].winStartX = 0;
       mosaicLayout.sMosaicWinFmt[0].winStartY = 0;
-      
+ 
       /*If LCD is chosen, fir the mosaic window to the size of the LCD display*/
       mosaicLayout.sMosaicWinFmt[0].winWidth = LCD_WIDTH;
       mosaicLayout.sMosaicWinFmt[0].winHeight = LCD_HEIGHT;
-      mosaicLayout.sMosaicWinFmt[0].pitch[VFDC_YUV_INT_ADDR_IDX] = 
-                                         LCD_WIDTH * 2;  
-  	}
-  if (isLCD || isHDMI){
-    mosaicLayout.sMosaicWinFmt[0].dataFormat =  VFDC_DF_YUV422I_YVYU;
-    mosaicLayout.sMosaicWinFmt[0].bpp = VFDC_BPP_BITS16;
-    mosaicLayout.sMosaicWinFmt[0].priority = 0;
-    mosaicLayout.nDisChannelNum = 0;
-    mosaicLayout.nNumWindows = 1;
+      mosaicLayout.sMosaicWinFmt[0].pitch[VFDC_YUV_INT_ADDR_IDX] = LCD_WIDTH * 2;  
+    }
+    if (isLCD || isHDMI){
+      mosaicLayout.sMosaicWinFmt[0].dataFormat =  VFDC_DF_YUV422I_YVYU;
+      mosaicLayout.sMosaicWinFmt[0].bpp = VFDC_BPP_BITS16;
+      mosaicLayout.sMosaicWinFmt[0].priority = 0;
+      mosaicLayout.nDisChannelNum = 0;
+      mosaicLayout.nNumWindows = 1;
 
-    OMX_SetParameter (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexParamVFDCCreateMosaicLayout, 
-        &mosaicLayout);
+      OMX_SetParameter (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexParamVFDCCreateMosaicLayout, &mosaicLayout);
 
-    /* set port to window mapping */
-    _G_OMX_INIT_PARAM (&port2Winmap);
-    port2Winmap.nLayoutId = 0; 
-    port2Winmap.numWindows = 1; 
-    port2Winmap.omxPortList[0] = OMX_VFDC_INPUT_PORT_START_INDEX + 0;
+      /* set port to window mapping */
+      _G_OMX_INIT_PARAM (&port2Winmap);
+      port2Winmap.nLayoutId = 0; 
+      port2Winmap.numWindows = 1; 
+      port2Winmap.omxPortList[0] = OMX_VFDC_INPUT_PORT_START_INDEX + 0;
 
-    OMX_SetConfig (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexConfigVFDCMosaicPort2WinMap, &port2Winmap);
-  }
+      OMX_SetConfig (gomx->omx_handle, (OMX_INDEXTYPE) OMX_TI_IndexConfigVFDCMosaicPort2WinMap, &port2Winmap);
+    }
     /* set default input memory to Raw */
     _G_OMX_INIT_PARAM (&memTypeCfg);
     memTypeCfg.nPortIndex = 0;
     memTypeCfg.eBufMemoryType = OMX_BUFFER_MEMORY_DEFAULT;
-    
+
     OMX_SetParameter (gomx->omx_handle, OMX_TI_IndexParamBuffMemType, &memTypeCfg);
 
-	_G_OMX_INIT_PARAM (&fieldMergeInfo);
+    _G_OMX_INIT_PARAM (&fieldMergeInfo);
     fieldMergeInfo.fieldMergeMode = FALSE;
-    
+
     OMX_SetParameter (gomx->omx_handle, (OMX_INDEXTYPE)OMX_TI_IndexParamVFDCFieldMergeMode, &fieldMergeInfo);
- 
+
     /* enable the input port */
     OMX_SendCommand (gomx->omx_handle, OMX_CommandPortEnable, omx_base->in_port->port_index, NULL);
     g_sem_down (omx_base->in_port->core->port_sem);
