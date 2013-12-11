@@ -84,16 +84,46 @@ set_property (GObject * obj,
     guint prop_id, const GValue * value, GParamSpec * pspec)
 {
   GstOmxBaseFilter *omx_base;
+  GOmxCore *gomx;
   GstOmxMjpegEnc *self;
 
   omx_base = GST_OMX_BASE_FILTER (obj);
   self = GST_OMX_MJPEGENC (obj);
+  gomx = (GOmxCore *) omx_base->gomx;
 
   switch (prop_id) {
     case ARG_QUALITY:
+#if 0
     {
+      OMX_IMAGE_PARAM_QFACTORTYPE tQualityFactor;
+      OMX_ERRORTYPE error_val = OMX_ErrorNone;
+      
+      _G_OMX_INIT_PARAM(&tQualityFactor);
+      tQualityFactor.nPortIndex = omx_base->out_port->port_index;
+      
+      error_val = OMX_GetParameter(gomx->omx_handle, OMX_IndexParamQFactor, &tQualityFactor);
+      
+      GST_INFO_OBJECT (self, "At set property QFactor %d",
+                       (gint)tQualityFactor.nQFactor);
+      
+      g_assert (error_val == OMX_ErrorNone);
+            
+      tQualityFactor.nQFactor = g_value_get_uint (value);
+
+      error_val = OMX_SetParameter(gomx->omx_handle, OMX_IndexParamQFactor,  &tQualityFactor);
+      
+      OMX_GetParameter(gomx->omx_handle, OMX_IndexParamQFactor, &tQualityFactor);
+        
+      GST_INFO_OBJECT (self, "Exit setup QFactor %d",
+                      (gint)tQualityFactor.nQFactor);
+      g_assert (error_val == OMX_ErrorNone);
+
       break;
     }
+#else
+    self->quality = g_value_get_uint (value);
+    break;
+#endif
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
       break;
@@ -104,15 +134,38 @@ static void
 get_property (GObject * obj, guint prop_id, GValue * value, GParamSpec * pspec)
 {
   GstOmxMjpegEnc *self;
+  GOmxCore *gomx;
   GstOmxBaseFilter *omx_base;
 
   omx_base = GST_OMX_BASE_FILTER (obj);
   self = GST_OMX_MJPEGENC (obj);
+  gomx = (GOmxCore *) omx_base->gomx;
 
   switch (prop_id) {
     case ARG_QUALITY:
-      //g_value_set_boolean (value, self->bytestream);
+#if 0
+    {
+      OMX_IMAGE_PARAM_QFACTORTYPE tQualityFactor;
+      OMX_ERRORTYPE error_val = OMX_ErrorNone;
+      
+      _G_OMX_INIT_PARAM(&tQualityFactor);
+      tQualityFactor.nPortIndex = omx_base->out_port->port_index;
+
+      error_val = OMX_GetParameter(gomx->omx_handle, OMX_IndexParamQFactor, &tQualityFactor);
+      
+      GST_INFO_OBJECT (self, "At get property QFactor %d",
+                       (gint)tQualityFactor.nQFactor);
+      
+      g_assert (error_val == OMX_ErrorNone);
+            
+      g_value_set_uint(value, (gint)tQualityFactor.nQFactor);
+
       break;
+    }
+#else
+    g_value_set_uint(value, self->quality);
+    break;
+#endif
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
       break;
@@ -161,21 +214,26 @@ omx_setup (GstOmxBaseFilter * omx_base)
 
   GST_INFO_OBJECT (omx_base, "begin");
 
-/*
-    {
-		OMX_VIDEO_PARAM_ENCODER_PRESETTYPE tEncoderPreset;
+   {
+        OMX_IMAGE_PARAM_QFACTORTYPE tQualityFactor;
 
-		_G_OMX_INIT_PARAM(&tEncoderPreset);
-		tEncoderPreset.nPortIndex = omx_base->out_port->port_index;
+        _G_OMX_INIT_PARAM(&tQualityFactor);
+        tQualityFactor.nPortIndex = omx_base->out_port->port_index;
 
-		OMX_GetParameter(gomx->omx_handle, OMX_TI_IndexParamVideoEncoderPreset, &tEncoderPreset);
+        OMX_GetParameter(gomx->omx_handle, OMX_IndexParamQFactor, &tQualityFactor);
+        
+        GST_INFO_OBJECT (self, "At setup QFactor %d",
+                       (gint)tQualityFactor.nQFactor);
 
-		tEncoderPreset.eEncodingModePreset = mjpegenc->encodingPreset;
-		tEncoderPreset.eRateControlPreset  = mjpegenc->ratecontrolPreset;
+        tQualityFactor.nQFactor = mjpegenc->quality;
 
-		OMX_SetParameter(gomx->omx_handle, OMX_TI_IndexParamVideoEncoderPreset,	&tEncoderPreset);
+        OMX_SetParameter(gomx->omx_handle, OMX_IndexParamQFactor,  &tQualityFactor);
+        
+        OMX_GetParameter(gomx->omx_handle, OMX_IndexParamQFactor, &tQualityFactor);
+        
+        GST_INFO_OBJECT (self, "Exit setup QFactor %d",
+                       (gint)tQualityFactor.nQFactor);
     }
-*/
 
   GST_INFO_OBJECT (omx_base, "end");
 
@@ -192,7 +250,7 @@ settings_changed_cb (GOmxCore * core)
   omx_base_filter = core->object;
   omx_base = GST_OMX_BASE_VIDEOENC (omx_base_filter);
 
-  GST_DEBUG_OBJECT (omx_base, "settings changed");
+  GST_INFO_OBJECT (omx_base, "settings changed");
 
   {
     OMX_PARAM_PORTDEFINITIONTYPE param;
@@ -237,5 +295,6 @@ type_instance_init (GTypeInstance * instance, gpointer g_class)
 
   omx_base_filter->gomx->settings_changed_cb = settings_changed_cb;
 
-//    self->quality = 90;
+  self->quality = 90;
+  
 }
