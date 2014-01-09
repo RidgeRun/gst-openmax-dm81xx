@@ -69,30 +69,51 @@ create_src_caps (GstOmxBaseFilter *omx_base)
 {
     GstCaps *caps;    
     GstOmxBaseVfpc *self;
-    int width, height;
+    gint width = 0;
+    gint height = 0;
+    gint par_num = 0;
+    gint par_denom = 0;
     GstStructure *struc;
 
     self = GST_OMX_BASE_VFPC (omx_base);
     caps = gst_pad_peer_get_caps (omx_base->srcpad);
 
-    if (NULL == caps || gst_caps_is_empty (caps))
-    {
-        width = self->in_width;
-        height = self->in_height;
-    }
-    else
+    if (NULL != caps && ! gst_caps_is_empty (caps))
     {
         GstStructure *s;
 
         s = gst_caps_get_structure (caps, 0);
+        gst_structure_get_int (s, "width", &width);
+        gst_structure_get_int (s, "height", &height);
+        gst_structure_get_fraction (s, "pixel-aspect-ratio", &par_num, &par_denom);
+    }
 
-        if (!(gst_structure_get_int (s, "width", &width) &&
-            gst_structure_get_int (s, "height", &height)))
+    /* Set default values */
+    if( !width && !height )
+    {
+        width = self->in_width;
+        height = self->in_height;
+    }
+    else if( !( width && height ) )
+    {
+        gint ratio_num = 1;
+        gint ratio_denom = 1;
+        
+        if( par_denom && self->pixel_aspect_ratio_denom ) {
+            ratio_num = par_num * self->pixel_aspect_ratio_denom;
+            ratio_denom = par_denom * self->pixel_aspect_ratio_num;
+        }
+        
+        if( !width && height )
         {
-            width = self->in_width;
-            height = self->in_height;    
+            width = height * self->in_width * ratio_num / self->in_height / ratio_denom;
+        }
+        else if( !height && width )
+        {
+            height = width * self->in_height * ratio_denom / self->in_width / ratio_num;
         }
     }
+
 	/* Workaround: Make width multiple of 16, otherwise, scaler crashes */
 	width = (width+15) & 0xFFFFFFF0;
 
@@ -110,7 +131,11 @@ create_src_caps (GstOmxBaseFilter *omx_base)
         "framerate", GST_TYPE_FRACTION, self->framerate_num, self->framerate_denom, NULL);
     }
 
-	if (self->pixel_aspect_ratio_denom)
+	if (par_denom)
+	{
+		gst_structure_set (struc, "pixel-aspect-ratio", GST_TYPE_FRACTION, par_num, par_denom, NULL);
+	}
+	else if (self->pixel_aspect_ratio_denom)
 	{
 		gst_structure_set (struc,
 				"pixel-aspect-ratio", GST_TYPE_FRACTION, self->pixel_aspect_ratio_num, 
