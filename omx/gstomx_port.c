@@ -85,7 +85,7 @@ void
 g_omx_port_free (GOmxPort *port)
 {
 
-    DEBUG (port, "begin");
+    GST_DEBUG ("begin");
 
 	gst_omxportptr_unref(port->portptr);
 
