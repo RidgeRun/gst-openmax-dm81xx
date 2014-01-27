@@ -92,19 +92,6 @@ g_ptr_array_clear (GPtrArray *array)
         array->pdata[index] = NULL;
 }
 
-static void
-g_ptr_array_insert (GPtrArray *array,
-                    guint index,
-                    gpointer data)
-{
-    if (index + 1 > array->len)
-    {
-        g_ptr_array_set_size (array, index + 1);
-    }
-
-    array->pdata[index] = data;
-}
-
 typedef void (*GOmxPortFunc) (GOmxPort *port);
 
 static void inline
@@ -265,7 +252,7 @@ g_omx_core_init (GOmxCore *core)
         core->omx_state = OMX_StateLoaded;
 }
 
-void 
+void
 g_omx_core_change_state (GOmxCore *core, OMX_STATETYPE state)
 {
     change_state (core, state);
