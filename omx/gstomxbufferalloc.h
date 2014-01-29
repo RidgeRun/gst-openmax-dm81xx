@@ -76,7 +76,9 @@ struct _GstomxBufferAlloc
 
   GstPad *sinkpad, *srcpad;
 
+  GOmxImp *imp;
   gboolean silent;
+  char *omx_library;
 
   GOmxPort out_port;
   guint cnt;

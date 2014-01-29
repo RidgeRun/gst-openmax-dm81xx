@@ -196,6 +196,7 @@ gst_omx_buffer_alloc_init (GstomxBufferAlloc * filter,
   filter->out_port.always_copy = FALSE;
   filter->cnt = 0;
   filter->out_port.buffers = NULL;
+  filter->omx_library = "libOMX_Core.so";
 }
 
 static void
@@ -208,9 +209,9 @@ gst_omx_buffer_alloc_set_property (GObject * object, guint prop_id,
     case PROP_SILENT:
       filter->silent = g_value_get_boolean (value);
       break;
-	case PROP_NUMBUFFERS:
-	  filter->out_port.num_buffers = g_value_get_uint (value);
-	  break;
+    case PROP_NUMBUFFERS:
+      filter->out_port.num_buffers = g_value_get_uint (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -226,6 +227,9 @@ gst_omx_buffer_alloc_get_property (GObject * object, guint prop_id,
   switch (prop_id) {
     case PROP_SILENT:
       g_value_set_boolean (value, filter->silent);
+      break;
+    case PROP_NUMBUFFERS:
+      g_value_set_uint (value, filter->out_port.num_buffers);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -307,12 +311,12 @@ gst_omx_buffer_alloc_change_state (GstElement *element,
               GstStateChange transition)
 {
     GstStateChangeReturn ret = GST_STATE_CHANGE_SUCCESS;
-	GstomxBufferAlloc *filter = GST_OMXBUFFERALLOC (element);
-	guint ii;
+    GstomxBufferAlloc *filter = GST_OMXBUFFERALLOC (element);
+    guint ii;
     switch (transition)
     {
         case GST_STATE_CHANGE_NULL_TO_READY:
-            OMX_Init ();
+            filter->imp = g_omx_request_imp (filter->omx_library);
             break;
 
         default:
@@ -329,12 +333,18 @@ gst_omx_buffer_alloc_change_state (GstElement *element,
         /* FIXME: This is a workaround to avoid a big mem leak. Resources should
 	   be freed on the READY_TO_NULL transition */
         case GST_STATE_CHANGE_PAUSED_TO_READY:
-			if(filter->out_port.buffers) {
-			  for(ii = 0; ii < filter->out_port.num_buffers; ii++) {
-    			  Memory_free(filter->heap,filter->out_port.buffers[ii]->pBuffer,filter->allocSize);
-			  }
-			  g_free(filter->out_port.buffers);
-			}
+            if(filter->out_port.buffers) {
+              for(ii = 0; ii < filter->out_port.num_buffers; ii++) {
+                  Memory_free(filter->heap,filter->out_port.buffers[ii]->pBuffer,filter->allocSize);
+              }
+              g_free(filter->out_port.buffers);
+            }
+            break;
+        case GST_STATE_CHANGE_READY_TO_NULL:
+            if (filter->imp) {
+              g_omx_release_imp (filter->imp);
+              filter->imp = NULL;
+            }
             break;
 
         default:
@@ -344,7 +354,3 @@ gst_omx_buffer_alloc_change_state (GstElement *element,
 leave:
     return ret;
 }
-
-
-
-
