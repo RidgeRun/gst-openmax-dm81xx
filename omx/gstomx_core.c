@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-
 #include "gstomx_util.h"
 #include "gstomx.h"
 
@@ -83,6 +82,18 @@ static OMX_CALLBACKTYPE callbacks = { EventHandler, EmptyBufferDone, FillBufferD
 /*
  * Util
  */
+static void
+g_ptr_array_insert_custom (GPtrArray *array,
+                    guint index,
+                    gpointer data)
+{
+    if (index + 1 > array->len)
+    {
+        g_ptr_array_set_size (array, index + 1);
+    }
+
+    array->pdata[index] = data;
+}
 
 static void
 g_ptr_array_clear (GPtrArray *array)
@@ -106,8 +117,9 @@ core_for_each_port (GOmxCore *core,
 
         port = get_port (core, index);
 
-        if (port)
+        if (port) {
             func (port);
+        }
     }
 }
 
@@ -393,7 +405,7 @@ g_omx_core_get_port (GOmxCore *core, const gchar *name, guint index)
     if (!port)
     {
         port = g_omx_port_new (core, name, index);
-        g_ptr_array_insert (core->ports, index, port);
+        g_ptr_array_insert_custom (core->ports, index, port);
     }
 
     return port;
