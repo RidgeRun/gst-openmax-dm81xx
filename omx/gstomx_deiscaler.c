@@ -24,7 +24,7 @@
 #include "gstomx_buffertransport.h"
 
 /* Define this for local framerate divisor implementation */
-#define LOCAL_FRAMERATE_DIV_IMPLEMENTATION 1
+#undef LOCAL_FRAMERATE_DIV_IMPLEMENTATION 1
 
 GSTOMX_BOILERPLATE (GstOmxMDeiScaler, gst_omx_mdeiscaler, GstOmxBaseVfpc2, GST_OMX_BASE_VFPC2_TYPE);
 GSTOMX_BOILERPLATE (GstOmxHDeiScaler, gst_omx_hdeiscaler, GstOmxBaseVfpc2, GST_OMX_BASE_VFPC2_TYPE);
