@@ -310,7 +310,9 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
             if (self->print_arm_load) 
                 print_cpu_load (self);
 
-            g_print ("\n");
+	    if (self->print_arm_load || self->print_fps)
+	      g_print ("\n");
+
             self->interval_ts = ts;
         }
     }
