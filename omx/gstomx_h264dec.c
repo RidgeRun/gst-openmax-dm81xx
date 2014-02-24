@@ -105,7 +105,9 @@ initialize_port (GstOmxBaseFilter *omx_base)
 	//Default value will be set by OMX VIDDEC plugin
 	//paramPort.nBufferCountActual = 8;//15;//output_buffer_count
     paramPort.format.video.nFrameWidth = width;
-    paramPort.format.video.nFrameHeight = height;
+    //Make sure height is aligned aligned to 16 in order to be compatible with
+    //deinterlacer element when decoding interlaced video 
+    paramPort.format.video.nFrameHeight = (height + 15) & 0xFFFFFFF0;
     paramPort.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
     paramPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
 	
