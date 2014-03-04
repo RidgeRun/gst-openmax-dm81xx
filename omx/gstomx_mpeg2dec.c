@@ -22,7 +22,7 @@
 #include "gstomx_mpeg2dec.h"
 #include "gstomx.h"
 
-GSTOMX_BOILERPLATE (GstOmxMpeg2Dec, gst_omx_mpeg2dec, GstOmxBaseVideoDec, GST_OMX_BASE_VIDEODEC_TYPE);
+GSTOMX_BOILERPLATE (GstLegacyOmxMpeg2Dec, gst_omx_mpeg2dec, GstOmxBaseVideoDec, GST_OMX_BASE_VIDEODEC_TYPE);
 
 #if 0
 static GstCaps *

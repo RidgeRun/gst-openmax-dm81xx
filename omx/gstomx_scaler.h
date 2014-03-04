@@ -26,15 +26,15 @@
 
 G_BEGIN_DECLS
 
-#define GST_OMX_SCALER(obj) (GstOmxScaler *) (obj)
+#define GST_OMX_SCALER(obj) (GstLegacyOmxScaler *) (obj)
 #define GST_OMX_SCALER_TYPE (gst_omx_scaler_get_type ())
 
-typedef struct GstOmxScaler GstOmxScaler;
-typedef struct GstOmxScalerClass GstOmxScalerClass;
+typedef struct GstLegacyOmxScaler GstLegacyOmxScaler;
+typedef struct GstLegacyOmxScalerClass GstLegacyOmxScalerClass;
 
 #include "gstomx_base_vfpc.h"
 
-struct GstOmxScaler
+struct GstLegacyOmxScaler
 {
     GstOmxBaseVfpc omx_base;
     gchar *crop_area;
@@ -44,7 +44,7 @@ struct GstOmxScaler
     guint cropHeight;
 };
 
-struct GstOmxScalerClass
+struct GstLegacyOmxScalerClass
 {
     GstOmxBaseVfpcClass parent_class;
 };

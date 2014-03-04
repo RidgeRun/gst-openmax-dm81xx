@@ -26,20 +26,20 @@
 
 G_BEGIN_DECLS
 
-#define GST_OMX_MPEG2DEC(obj) (GstOmxMpeg2Dec *) (obj)
+#define GST_OMX_MPEG2DEC(obj) (GstLegacyOmxMpeg2Dec *) (obj)
 #define GST_OMX_MPEG2DEC_TYPE (gst_omx_mpeg2dec_get_type ())
 
-typedef struct GstOmxMpeg2Dec GstOmxMpeg2Dec;
-typedef struct GstOmxMpeg2DecClass GstOmxMpeg2DecClass;
+typedef struct GstLegacyOmxMpeg2Dec GstLegacyOmxMpeg2Dec;
+typedef struct GstLegacyOmxMpeg2DecClass GstLegacyOmxMpeg2DecClass;
 
 #include "gstomx_base_videodec.h"
 
-struct GstOmxMpeg2Dec
+struct GstLegacyOmxMpeg2Dec
 {
     GstOmxBaseVideoDec omx_base;
 };
 
-struct GstOmxMpeg2DecClass
+struct GstLegacyOmxMpeg2DecClass
 {
     GstOmxBaseVideoDecClass parent_class;
 };

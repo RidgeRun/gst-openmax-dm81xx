@@ -22,7 +22,7 @@
 #include "gstomx_scaler.h"
 #include "gstomx.h"
 
-GSTOMX_BOILERPLATE (GstOmxScaler, gst_omx_scaler, GstOmxBaseVfpc, GST_OMX_BASE_VFPC_TYPE);
+GSTOMX_BOILERPLATE (GstLegacyOmxScaler, gst_omx_scaler, GstOmxBaseVfpc, GST_OMX_BASE_VFPC_TYPE);
 
 static GstStaticPadTemplate sink_template =
         GST_STATIC_PAD_TEMPLATE ("sink",
