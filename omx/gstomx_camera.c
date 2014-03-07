@@ -208,48 +208,6 @@ setup_ports (GstOmxBaseSrc * base_src)
   self->port->share_buffer = FALSE;
 }
 
-static GstClockTime
-get_timestamp (GstOmxCamera * self)
-{
-  GstClock *clock;
-  GstClockTime timestamp;
-
-  /* timestamps, LOCK to get clock and base time. */
-  GST_OBJECT_LOCK (self);
-  if ((clock = GST_ELEMENT_CLOCK (self))) {
-    /* we have a clock, get base time and ref clock */
-    timestamp = GST_ELEMENT (self)->base_time;
-    gst_object_ref (clock);
-  } else {
-    /* no clock, can't set timestamps */
-    timestamp = GST_CLOCK_TIME_NONE;
-  }
-  GST_OBJECT_UNLOCK (self);
-
-  if (clock) {
-    /* the time now is the time of the clock minus the base time */
-    /* Hack: Need to subtract the extra lag that is causing problems to AV sync */
-    timestamp = gst_clock_get_time (clock) - timestamp - (65 * GST_MSECOND);
-    gst_object_unref (clock);
-
-    /* if we have a framerate adjust timestamp for frame latency */
-#if 0
-    if (self->fps_n > 0 && self->fps_d > 0) {
-      GstClockTime latency;
-
-      latency =
-          gst_util_uint64_scale_int (GST_SECOND, self->fps_d, self->fps_n);
-
-      if (timestamp > latency)
-        timestamp -= latency;
-      else
-        timestamp = 0;
-    }
-#endif
-  }
-  return timestamp;
-}
-
 static void
 start_ports (GstOmxCamera * self)
 {
@@ -268,7 +226,11 @@ create (GstBaseSrc * gst_base,
   GstOmxBaseSrc *omx_base = GST_OMX_BASE_SRC (self);
   GstFlowReturn ret = GST_FLOW_NOT_NEGOTIATED;
   guint n_offset = 0;
-
+  GstClock *clock;
+  GstClockTime timestamp;
+#if 0
+  GstClockTime abs_time, base_time, duration;
+#endif
   if (omx_base->gomx->omx_state == OMX_StateLoaded) {
     gst_omx_base_src_setup_ports (omx_base);
     g_omx_core_prepare (omx_base->gomx);
@@ -286,8 +248,41 @@ create (GstBaseSrc * gst_base,
   if (ret != GST_FLOW_OK)
     goto fail;
 
-  GST_BUFFER_TIMESTAMP (*ret_buf) = get_timestamp (self);
+#if 0
+  /* timestamps, LOCK to get clock and base time. */
+  GST_OBJECT_LOCK (self);
+  if ((clock = GST_ELEMENT_CLOCK (self))) {
+    /* we have a clock, get base time and ref clock */
+    base_time = GST_ELEMENT (self)->base_time;
+    abs_time = gst_clock_get_time (clock);
+  } else {
+    /* no clock, can't set timestamps */
+    base_time = GST_CLOCK_TIME_NONE;
+    abs_time = GST_CLOCK_TIME_NONE;
+  }
+  GST_OBJECT_UNLOCK (self);
 
+  timestamp = GST_BUFFER_TIMESTAMP (*ret_buf);
+  //GST_INFO_OBJECT (self, "Original timestamp %" GST_TIME_FORMAT, GST_TIME_ARGS (timestamp));
+  //GST_INFO_OBJECT (self, "Base time %" GST_TIME_FORMAT, GST_TIME_ARGS (base_time));
+  //GST_INFO_OBJECT (self, "Abs time %" GST_TIME_FORMAT, GST_TIME_ARGS (abs_time));
+
+  if (!self->alreadystarted) {
+    self->running_time = abs_time - base_time;
+    if (!self->running_time)
+      self->running_time = timestamp;
+    self->omx_delay = timestamp - self->running_time;
+
+    //GST_INFO_OBJECT (self, "OMX delay %" G_GINT64_FORMAT, self->omx_delay);
+    self->alreadystarted = 1;
+  }
+  timestamp = timestamp - self->omx_delay;
+  //GST_INFO_OBJECT (self, "Adjusted timestamp %" GST_TIME_FORMAT, GST_TIME_ARGS (timestamp));
+  GST_BUFFER_TIMESTAMP (*ret_buf) = timestamp;
+#else
+  // Let gstreamer make the job
+  GST_BUFFER_TIMESTAMP (*ret_buf) = GST_CLOCK_TIME_NONE;//timestamp;
+#endif
   return GST_FLOW_OK;
 
 fail:
