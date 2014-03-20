@@ -25,7 +25,7 @@
 #include "gstomx_h264dec.h"
 #include "gstomx.h"
 
-GSTOMX_BOILERPLATE (GstOmxH264Dec, gst_omx_h264dec, GstOmxBaseVideoDec, GST_OMX_BASE_VIDEODEC_TYPE);
+GSTOMX_BOILERPLATE (GstLegacyOmxH264Dec, gst_omx_h264dec, GstOmxBaseVideoDec, GST_OMX_BASE_VIDEODEC_TYPE);
 
 static GstCaps *
 generate_sink_template (void)
