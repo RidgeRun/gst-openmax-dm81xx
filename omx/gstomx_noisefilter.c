@@ -170,7 +170,6 @@ omx_setup (GstOmxBaseFilter *omx_base)
     paramPort.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
     paramPort.format.video.eColorFormat = OMX_COLOR_FormatYCbYCr;
     paramPort.nBufferSize = (paramPort.format.video.nStride * paramPort.format.video.nFrameHeight * 2);
-    paramPort.nBufferCountActual = 2;
     paramPort.nBufferAlignment = 0;
     paramPort.bBuffersContiguous = 0;
     G_OMX_PORT_SET_DEFINITION (omx_base->in_port, &paramPort);
@@ -186,7 +185,6 @@ omx_setup (GstOmxBaseFilter *omx_base)
     paramPort.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
     paramPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
     paramPort.nBufferSize = (paramPort.format.video.nStride * paramPort.format.video.nFrameHeight * 3) >> 1;
-    paramPort.nBufferCountActual = 2;
     paramPort.nBufferAlignment = 0;
     paramPort.bBuffersContiguous = 0;
     G_OMX_PORT_SET_DEFINITION (omx_base->out_port, &paramPort);
