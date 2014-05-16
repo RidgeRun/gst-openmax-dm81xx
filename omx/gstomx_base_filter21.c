@@ -106,7 +106,7 @@ src_setcaps (GstPad *pad, GstCaps *caps)
     gint out_framerate_denom = gst_value_get_fraction_denominator(self->out_framerate);
 
     gst_structure_set(structure, "framerate", GST_TYPE_FRACTION, out_framerate_num, out_framerate_denom, NULL);
-    
+
     GST_DEBUG_OBJECT(self, "output framerate is: %d/%d", out_framerate_num, out_framerate_denom);
 
     /* save the src caps later needed by omx transport buffer */
@@ -140,7 +140,7 @@ sink_setcaps (GstPad *pad,
     gomx = (GOmxCore *) self->gomx;
 	GST_DEBUG_OBJECT (self, "setcaps (sink): %d", sink_number);
     GST_DEBUG_OBJECT (self, "setcaps (sink): %" GST_PTR_FORMAT, caps);
-	
+
     g_return_val_if_fail (caps, FALSE);
     g_return_val_if_fail (gst_caps_is_fixed (caps), FALSE);
 
@@ -154,7 +154,7 @@ sink_setcaps (GstPad *pad,
         return FALSE;
     }
 
-    if (!self->in_stride[sink_number]) 
+    if (!self->in_stride[sink_number])
     {
         self->in_stride[sink_number] = gstomx_calculate_stride (self->in_width[sink_number], format);
     }
@@ -186,7 +186,7 @@ setup_ports (GstOmxBaseFilter21 *self)
 	int i;
 	gboolean omx_allocate, share_buffer;
 	gboolean set_omx_allocate = FALSE, set_share_buffer = FALSE;
-	
+
     if (g_getenv ("OMX_ALLOCATE_ON"))
     {
         GST_DEBUG_OBJECT (self, "OMX_ALLOCATE_ON");
@@ -221,7 +221,7 @@ setup_ports (GstOmxBaseFilter21 *self)
     gst_pad_set_element_private (self->srcpad, self->out_port);
 	if (set_omx_allocate) self->out_port->omx_allocate = omx_allocate;
 	if (set_share_buffer) self->out_port->share_buffer = share_buffer;
-	
+
 }
 
 static void
@@ -246,7 +246,7 @@ setup_input_buffer (GstOmxBaseFilter21 *self, GstBuffer *buf, int sink_num)
 				/* allocate resource to save the incoming buffer port pBuffer pointer in
 				* OmxBufferInfo structure.
 				*/
-			
+
 				in_port =  self->in_port[i];
 				in_port->share_buffer_info = malloc (sizeof(OmxBufferInfo));
 				if(in_port->share_buffer_info == NULL){
@@ -300,7 +300,7 @@ change_state (GstElement *element,
                 goto leave;
             }
             break;
-            
+
         case GST_STATE_CHANGE_READY_TO_PAUSED:
             gst_collect_pads_start(self->collectpads);
             break;
@@ -423,7 +423,7 @@ set_property (GObject *obj,
 			break;
 		case ARG_Y_SINK_1:
 			self->y[1] = g_value_get_uint(value);
-			break;	
+			break;
         case ARG_NUM_INPUT_BUFFERS:
             {
                 OMX_PARAM_PORTDEFINITIONTYPE param;
@@ -491,7 +491,7 @@ get_property (GObject *obj,
 			break;
 		case ARG_Y_SINK_1:
 			g_value_set_uint(value,self->y[1]);
-			break;	
+			break;
         case ARG_NUM_INPUT_BUFFERS:
         case ARG_NUM_OUTPUT_BUFFERS:
             {
@@ -571,22 +571,22 @@ type_class_init (gpointer g_class,
                                          g_param_spec_uint ("x-sink0", "X stating coordinate",
                                                             "X stating coordinate for sink_00",
                                                             0, 1920, 0, G_PARAM_READWRITE));
-        
+
         g_object_class_install_property (gobject_class, ARG_Y_SINK_0,
                                          g_param_spec_uint ("y-sink0", "Y stating coordinate",
                                                             "Y stating coordinate for sink_00",
                                                             0, 1280, 0, G_PARAM_READWRITE));
-                                                            
+
          g_object_class_install_property (gobject_class, ARG_X_SINK_1,
                                          g_param_spec_uint ("x-sink1", "X stating coordinate",
                                                             "X stating coordinate for sink_01",
                                                             0, 1920, 0, G_PARAM_READWRITE));
-        
+
         g_object_class_install_property (gobject_class, ARG_Y_SINK_1,
                                          g_param_spec_uint ("y-sink1", "Y stating coordinate",
                                                             "Y stating coordinate for sink_01",
                                                             0, 1280, 0, G_PARAM_READWRITE));
-         
+
         g_object_class_install_property (gobject_class, ARG_NUM_INPUT_BUFFERS,
                                          g_param_spec_uint ("input-buffers", "Input buffers",
                                                             "The number of OMX input buffers",
@@ -610,9 +610,9 @@ push_buffer (GstOmxBaseFilter21 *self,
 	}
 
     GST_BUFFER_DURATION (buf) = self->duration;
-    GST_DEBUG_OBJECT(self, "self->last_buf_timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(self->last_buf_timestamp));
+    GST_INFO_OBJECT(self, "self->last_buf_timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(self->last_buf_timestamp));
     GST_BUFFER_TIMESTAMP(buf) = self->last_buf_timestamp + self->duration;
-    GST_DEBUG_OBJECT(self, "timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(GST_BUFFER_TIMESTAMP(buf)));
+    GST_INFO_OBJECT(self, "timestamp=%" GST_TIME_FORMAT, GST_TIME_ARGS(GST_BUFFER_TIMESTAMP(buf)));
 
     PRINT_BUFFER (self, buf);
     if (self->push_cb) {
@@ -634,7 +634,7 @@ output_loop (gpointer data)
     GstOmxBaseFilter21 *self;
     GstFlowReturn ret = GST_FLOW_OK;
     GstOmxBaseFilter21Class *bclass;
-    
+
     pad = data;
     self = GST_OMX_BASE_FILTER21 (gst_pad_get_parent (pad));
     gomx = self->gomx;
@@ -716,7 +716,7 @@ leave:
     }
 
     gst_object_unref (self);
-    
+
 }
 
 static GstFlowReturn collected_pads(GstCollectPads *pads, GstOmxBaseFilter21 *self)
@@ -734,7 +734,7 @@ static GstFlowReturn collected_pads(GstCollectPads *pads, GstOmxBaseFilter21 *se
     // Collect buffers
     for( item = pads->data ; item != NULL ; item = item->next ) {
         collectdata = (GstCollectData *) item->data;
-        
+
         //FIXME Use collect data
         if(strcmp(GST_PAD_NAME(collectdata->pad), "sink_00") == 0){
     		sink_number=0;
@@ -742,9 +742,9 @@ static GstFlowReturn collected_pads(GstCollectPads *pads, GstOmxBaseFilter21 *se
 	    else{
 		    sink_number=1;
 	    }
-	    
+
 	    buffers[sink_number] = gst_collect_pads_pop(pads, collectdata);
-	    
+
 	    if( buffers[sink_number] == NULL ) {
 	        eos = TRUE;
 	    }
@@ -769,15 +769,15 @@ static GstFlowReturn collected_pads(GstCollectPads *pads, GstOmxBaseFilter21 *se
         setup_input_buffer (self, buffers[sink_number], sink_number);
       }
     }
-    
+
     // Call chain foreach buffer
     for( sink_number=0 ; sink_number<2 ; sink_number++ ) {
         ret = pad_chain(self->sinkpad[sink_number], buffers[sink_number]);
     }
-    
+
     // Call output_loop after pad_chain
     output_loop(self->srcpad);
-    
+
     return ret;
 }
 
@@ -793,7 +793,7 @@ pad_chain (GstPad *pad,
 	static sink_init = 0;
 	int sink_number;
 	static gboolean init_done = FALSE;
-	
+
     self = GST_OMX_BASE_FILTER21 (GST_OBJECT_PARENT (pad));
 	if(strcmp(GST_PAD_NAME(pad), "sink_00") == 0){
 		sink_number=0;
@@ -807,7 +807,7 @@ pad_chain (GstPad *pad,
     gomx = self->gomx;
 
     GST_DEBUG_OBJECT (self, "begin: size=%u, state=%d, sink_number=%d", GST_BUFFER_SIZE (buf), gomx->omx_state, sink_number);
-	
+
 	/*if (G_LIKELY (gomx->omx_state != OMX_StateExecuting))
     {
 		GST_INFO_OBJECT (self, "Begin - Port %d", sink_number);
@@ -829,18 +829,18 @@ pad_chain (GstPad *pad,
 			}
 		}
 	}*/
-	
+
     if (G_UNLIKELY (gomx->omx_state == OMX_StateLoaded))
     {
 
         GST_DEBUG_OBJECT (self, "omx: prepare");
-        
+
         /** @todo this should probably go after doing preparations. */
         if (self->omx_setup)
         {
             self->omx_setup (self);
         }
-        
+
         /* enable input port */
         for(i=0;i<NUM_INPUTS;i++){
 			GST_DEBUG_OBJECT (self,"Enable Port %d",self->in_port[i]->port_index);
@@ -863,13 +863,13 @@ pad_chain (GstPad *pad,
             self->ready = TRUE;
            	//gst_pad_start_task (self->srcpad, output_loop, self->srcpad);
         }
-        
+
         if (gomx->omx_state != OMX_StateIdle)
             goto out_flushing;
-        
-        GST_DEBUG_OBJECT (self, "omx: end state Loaded");    
+
+        GST_DEBUG_OBJECT (self, "omx: end state Loaded");
     }
-    
+
     if (G_UNLIKELY (gomx->omx_state == OMX_StateIdle))
 	{
 		g_omx_core_start (gomx);
@@ -879,13 +879,13 @@ pad_chain (GstPad *pad,
 		if (gomx->omx_state != OMX_StateExecuting){
 			GST_DEBUG_OBJECT (self, "omx: executing FAILED !");
 			goto out_flushing;
-		
+
 		}
 	}
-	
+
 	if (G_LIKELY (self->in_port[sink_number]->enabled))
-	{	      
-		
+	{
+
 
 		if (G_UNLIKELY (gomx->omx_state != OMX_StateExecuting))
 		{
@@ -921,7 +921,7 @@ pad_chain (GstPad *pad,
 
 				break;
 			}
-			
+
 		}
 	}
 	else
@@ -986,7 +986,7 @@ pad_event (GstPad *pad,
 			g_mutex_unlock (self->ready_lock);
             if(self->number_eos == 0){
               ret = gst_pad_push_event (self->srcpad, event);
-            } 
+            }
             else{
               gst_event_unref (event);
             }
@@ -1054,7 +1054,7 @@ activate_push (GstPad *pad,
                 /** @todo link callback function also needed */
 				for (i = 0; i < NUM_INPUTS; i++)
 					g_omx_port_resume (self->in_port[i]);
-					
+
                	g_omx_port_resume (self->out_port);
 
                 //result = gst_pad_start_task (pad, output_loop, pad);
@@ -1071,7 +1071,7 @@ activate_push (GstPad *pad,
             /* unlock loops */
 			for (i = 0; i < NUM_INPUTS; i++)
 				g_omx_port_pause (self->in_port[i]);
-				
+
            	g_omx_port_pause (self->out_port);
         }
 
@@ -1225,7 +1225,7 @@ init_interfaces (GType type)
 
     omx_info = g_new0 (GInterfaceInfo, 1);
     omx_info->interface_init = (GInterfaceInitFunc) omx_interface_init;
-	
+
     g_type_add_interface_static (type, GST_TYPE_OMX, omx_info);
     g_free (omx_info);
 }

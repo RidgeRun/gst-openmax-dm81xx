@@ -150,6 +150,7 @@ gst_omx_video_ratecontrolpreset_get_type ()
         	{OMX_Video_RC_Storage,      "Storage",     "storage"},
         	{OMX_Video_RC_Twopass,      "Two Pass",    "two-pass"},
         	{OMX_Video_RC_None,         "none",        "none"},
+            {OMX_Video_RC_User_Defined, "User Defined", "user-defined"},
             {0, NULL, NULL },
         };
 
@@ -666,6 +667,44 @@ omx_setup (GstOmxBaseFilter *omx_base)
 
 		OMX_SetParameter(gomx->omx_handle, OMX_TI_IndexParamVideoEncoderPreset,	&tEncoderPreset);
     }
+
+
+    if (h264enc->ratecontrolPreset == OMX_Video_RC_User_Defined) {
+
+        OMX_VIDEO_CONFIG_DYNAMICPARAMS tDynParams;
+
+        _G_OMX_INIT_PARAM (&tDynParams);
+        tDynParams.nPortIndex = omx_base->out_port->port_index;
+
+        // All parameters are defined in :
+        // component-sources/omx_05_02_00_48/src/ti/omx/interfaces/openMaxv11/ih264enc.h
+        if (OMX_GetParameter (gomx->omx_handle, OMX_TI_IndexParamVideoDynamicParams, &tDynParams) == OMX_ErrorNone) {
+
+            GST_WARNING_OBJECT(omx_base, "IH264ENC_DynamicParams <-- rateControlParamsPreset = %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rateControlParamsPreset);
+            GST_WARNING_OBJECT(omx_base, "QpI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpI);
+            GST_WARNING_OBJECT(omx_base, "QpMaxI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMaxI);
+            GST_WARNING_OBJECT(omx_base, "QpMinI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMinI);
+            GST_WARNING_OBJECT(omx_base, "QpP : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpP);
+            GST_WARNING_OBJECT(omx_base, "QpMaxP : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMaxP);
+            GST_WARNING_OBJECT(omx_base, "QpMinP : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMinP);
+            GST_WARNING_OBJECT(omx_base, "IH264ENC_DynamicParams <-- enablePRC : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.enablePRC);
+            GST_WARNING_OBJECT(omx_base, "IH264ENC_DynamicParams <-- rcAlgo = %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rcAlgo);
+
+            tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rateControlParamsPreset = 1;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rcAlgo = 1;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.IPQualityFactor = 3;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.enablePRC = 1;
+
+            OMX_SetParameter (gomx->omx_handle, OMX_TI_IndexParamVideoDynamicParams, &tDynParams);
+            OMX_GetParameter (gomx->omx_handle, OMX_TI_IndexParamVideoDynamicParams, &tDynParams);
+            GST_WARNING_OBJECT(omx_base, "IH264ENC_DynamicParams <-- rateControlParamsPreset = %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rateControlParamsPreset);
+            GST_WARNING_OBJECT(omx_base, "IH264ENC_DynamicParams <-- rcAlgo = %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rcAlgo);
+
+        } else {
+            GST_WARNING_OBJECT(omx_base, "OMX_TI_IndexParamVideoDynamicParams unsupported");
+        }
+    }
+
 
     GST_INFO_OBJECT (omx_base, "end");
 }

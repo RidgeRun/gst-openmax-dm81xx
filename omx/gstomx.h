@@ -22,6 +22,7 @@
 #ifndef GSTOMX_H
 #define GSTOMX_H
 
+#include <xdc/std.h>
 #include <gst/gst.h>
 #include <stdio.h>
 
