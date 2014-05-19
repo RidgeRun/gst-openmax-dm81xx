@@ -655,7 +655,7 @@ omx_setup (GstOmxBaseFilter *omx_base)
       tAVCParams.eLevel = h264enc->level;
       tAVCParams.eProfile = h264enc->profile;
       tAVCParams.nPFrames = h264enc->i_period - 1;
-      if (tAVCParams.eProfile != OMX_VIDEO_AVCProfileBaseline && OMX_Video_RC_Storage == h264enc->ratecontrolPreset)
+      if (tAVCParams.eProfile != OMX_VIDEO_AVCProfileBaseline && (OMX_Video_RC_Storage == h264enc->ratecontrolPreset || OMX_Video_RC_User_Defined == h264enc->ratecontrolPreset))
         tAVCParams.nBFrames = 1;
       else
         tAVCParams.nBFrames = 0;
@@ -678,6 +678,7 @@ omx_setup (GstOmxBaseFilter *omx_base)
     }
 
 
+    /* This mode is used in order to have a finer control on bitrate/quality ratio */
     if (h264enc->ratecontrolPreset == OMX_Video_RC_User_Defined) {
 
         OMX_VIDEO_CONFIG_DYNAMICPARAMS tDynParams;
@@ -688,28 +689,101 @@ omx_setup (GstOmxBaseFilter *omx_base)
         // All parameters are defined in :
         // component-sources/omx_05_02_00_48/src/ti/omx/interfaces/openMaxv11/ih264enc.h
         if (OMX_GetParameter (gomx->omx_handle, OMX_TI_IndexParamVideoDynamicParams, &tDynParams) == OMX_ErrorNone) {
-
-            GST_WARNING_OBJECT(omx_base, "IH264ENC_DynamicParams <-- rateControlParamsPreset = %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rateControlParamsPreset);
-            GST_WARNING_OBJECT(omx_base, "QpI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpI);
-            GST_WARNING_OBJECT(omx_base, "QpMaxI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMaxI);
-            GST_WARNING_OBJECT(omx_base, "QpMinI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMinI);
-            GST_WARNING_OBJECT(omx_base, "QpP : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpP);
-            GST_WARNING_OBJECT(omx_base, "QpMaxP : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMaxP);
-            GST_WARNING_OBJECT(omx_base, "QpMinP : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMinP);
-            GST_WARNING_OBJECT(omx_base, "IH264ENC_DynamicParams <-- enablePRC : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.enablePRC);
-            GST_WARNING_OBJECT(omx_base, "IH264ENC_DynamicParams <-- rcAlgo = %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rcAlgo);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--Preset = %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rateControlParamsPreset);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--QpI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpI);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--QpMaxI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMaxI);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--QpMinI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMinI);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--QpP : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpP);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--QpMaxP : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMaxP);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--QpMinP : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMinP);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--PartialFrameSkip : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.enablePartialFrameSkip);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--enableROI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.enableROI);
 
             tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rateControlParamsPreset = 1;
             tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rcAlgo = 1;
-            tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.IPQualityFactor = 3;
-            tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.enablePRC = 1;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMinI = 10;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMinP = 10;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMinB = 10;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.enablePartialFrameSkip = 1;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.enableROI = 1;
+
 
             OMX_SetParameter (gomx->omx_handle, OMX_TI_IndexParamVideoDynamicParams, &tDynParams);
             OMX_GetParameter (gomx->omx_handle, OMX_TI_IndexParamVideoDynamicParams, &tDynParams);
-            GST_WARNING_OBJECT(omx_base, "IH264ENC_DynamicParams <-- rateControlParamsPreset = %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rateControlParamsPreset);
-            GST_WARNING_OBJECT(omx_base, "IH264ENC_DynamicParams <-- rcAlgo = %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rcAlgo);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--Preset = %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.rateControlParamsPreset);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--QpI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpI);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--QpMaxI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMaxI);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--QpMinI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMinI);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--QpP : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpP);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--QpMaxP : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMaxP);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--QpMinP : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.qpMinP);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--PartialFrameSkip : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.rateControlParams.enablePartialFrameSkip);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams <--enableROI : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.enableROI);
+
+            /* Inter coding parameters */
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.interCodingPreset);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.searchRangeHorP);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.searchRangeVerP);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.searchRangeHorB);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.searchRangeVerB);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.interCodingBias);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.skipMVCodingBias);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.minBlockSizeP);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.minBlockSizeB);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.meAlgoMode);
+
+            tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.interCodingPreset = 1;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.minBlockSizeP = 1; // 8x8
+            tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.minBlockSizeB = 1; // 8x8
+            tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.interCodingBias = 5; // IH264_BIASFACTOR_ADAPTIVE
+            tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.skipMVCodingBias = 5; // IH264_BIASFACTOR_ADAPTIVE
+
+            tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.searchRangeHorP = 144;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.searchRangeHorB = 144;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.searchRangeVerP = 32;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.searchRangeVerB = 16;
+
+
+            OMX_SetParameter (gomx->omx_handle, OMX_TI_IndexParamVideoDynamicParams, &tDynParams);
+            OMX_GetParameter (gomx->omx_handle, OMX_TI_IndexParamVideoDynamicParams, &tDynParams);
+
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.interCodingPreset);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.searchRangeHorP);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.searchRangeVerP);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.searchRangeHorB);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.searchRangeVerB);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.interCodingBias);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.skipMVCodingBias);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.minBlockSizeP);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.minBlockSizeB);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.interCodingParams.meAlgoMode);
+
+
+            /* Intra coding parameters */
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.intraCodingPreset);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.lumaIntra4x4Enable);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.lumaIntra8x8Enable);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.lumaIntra16x16Enable);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.chromaIntra8x8Enable);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.chromaComponentEnable);
+
+            tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.intraCodingPreset = 1; //INTRA_CODING_USER_DEFINED
+            tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.lumaIntra8x8Enable = 0x1FF;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.lumaIntra16x16Enable = 0xF;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.chromaIntra8x8Enable = 0xF;
+            tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.chromaComponentEnable = 0;
+            OMX_SetParameter (gomx->omx_handle, OMX_TI_IndexParamVideoDynamicParams, &tDynParams);
+            OMX_GetParameter (gomx->omx_handle, OMX_TI_IndexParamVideoDynamicParams, &tDynParams);
+
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.intraCodingPreset);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.lumaIntra4x4Enable);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.lumaIntra8x8Enable);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.lumaIntra16x16Enable);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.chromaIntra8x8Enable);
+            GST_INFO_OBJECT(omx_base, "IH264ENC_DynamicParams : %d", tDynParams.videoDynamicParams.h264EncDynamicParams.intraCodingParams.chromaComponentEnable);
 
         } else {
+
             GST_WARNING_OBJECT(omx_base, "OMX_TI_IndexParamVideoDynamicParams unsupported");
         }
     }
