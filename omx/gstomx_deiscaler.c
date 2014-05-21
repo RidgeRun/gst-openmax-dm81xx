@@ -101,66 +101,97 @@ create_src_caps (GstOmxBaseFilter2 *omx_base, int idx)
 {
     GstCaps *caps;
     GstOmxBaseVfpc2 *self;
-    int width, height, rowstride;
+    gint width = 0;
+    gint height = 0;
+    gint rowstride = 0;
+    gint par_num = 0;
+    gint par_denom = 0;
     GstStructure *struc;
 
     self = GST_OMX_BASE_VFPC2 (omx_base);
     caps = gst_pad_peer_get_caps (omx_base->srcpad[idx]);
-
-	width = self->in_width;
-	height = self->in_height;
-	rowstride = 0;
 
     if ((NULL != caps) && (!gst_caps_is_empty (caps)) && (0 != gst_caps_get_size (caps)))
     {
         GstStructure *s;
 
         s = gst_caps_get_structure (caps, 0);
-
-        if (!(gst_structure_get_int (s, "width", &width) &&
-            gst_structure_get_int (s, "height", &height))) {
-            width = self->in_width;
-            height = self->in_height;
-        } else
-			gst_structure_get_int (s, "rowstride", &rowstride);
+        gst_structure_get_int (s, "width", &width);
+        gst_structure_get_int (s, "height", &height);
+        gst_structure_get_fraction (s, "pixel-aspect-ratio", &par_num, &par_denom);
+        gst_structure_get_int (s, "rowstride", &rowstride);
     }
-	/* Workaround: Make width multiple of 16, otherwise, scaler crashes */
-	width = (width+15) & 0xFFFFFFF0;
 
-	if (caps) gst_caps_unref (caps);
+    /* Set default values */
+    if( !width && !height )
+    {
+        width = self->in_width;
+        height = self->in_height;
+    }
+    else if( !( width && height ) )
+    {
+        gint ratio_num = 1;
+        gint ratio_denom = 1;
+
+        if( par_denom && self->pixel_aspect_ratio_denom ) {
+            ratio_num = par_num * self->pixel_aspect_ratio_denom;
+            ratio_denom = par_denom * self->pixel_aspect_ratio_num;
+        }
+
+        GST_WARNING(" %dx%d %d/%d --> %dx%d %d/%d",
+                self->in_width, self->in_height, self->pixel_aspect_ratio_num, self->pixel_aspect_ratio_denom, width,
+                height, ratio_num, ratio_denom);
+
+        if( !width && height )
+        {
+            width = height * self->in_width * ratio_num / self->in_height / ratio_denom;
+        }
+        else if( !height && width )
+        {
+            height = width * self->in_height * ratio_denom / self->in_width / ratio_num;
+        }
+    }
+
+    /* Workaround: Make width multiple of 16, otherwise, scaler crashes */
+    width = (width+15) & 0xFFFFFFF0;
+
+    if (caps) gst_caps_unref (caps);
 
     caps = gst_caps_new_empty ();
-	if (rowstride) {
-		struc = gst_structure_new (("video/x-raw-yuv-strided"),
-				"width",  G_TYPE_INT, width,
-				"height", G_TYPE_INT, height,
-				"rowstride", G_TYPE_INT, rowstride,
-				"format", GST_TYPE_FOURCC, src_fourcc_list[idx],
-				NULL);
-	} else {
-		struc = gst_structure_new (("video/x-raw-yuv"),
-				"width",  G_TYPE_INT, width,
-				"height", G_TYPE_INT, height,
-				"format", GST_TYPE_FOURCC, src_fourcc_list[idx],
-				NULL);
-	}
+    if (rowstride) {
+        struc = gst_structure_new (("video/x-raw-yuv-strided"),
+                "width",  G_TYPE_INT, width,
+                "height", G_TYPE_INT, height,
+                "rowstride", G_TYPE_INT, rowstride,
+                "format", GST_TYPE_FOURCC, src_fourcc_list[idx],
+                NULL);
+    } else {
+        struc = gst_structure_new (("video/x-raw-yuv"),
+                "width",  G_TYPE_INT, width,
+                "height", G_TYPE_INT, height,
+                "format", GST_TYPE_FOURCC, src_fourcc_list[idx],
+                NULL);
+    }
 
     if (self->framerate_denom)
     {
         gst_structure_set (struc,
-        "framerate", GST_TYPE_FRACTION, self->framerate_num, self->framerate_denom, NULL);
+                "framerate", GST_TYPE_FRACTION, self->framerate_num, self->framerate_denom, NULL);
     }
 
-	if (self->pixel_aspect_ratio_denom)
-	{
-		gst_structure_set (struc,
-				"pixel-aspect-ratio", GST_TYPE_FRACTION, self->pixel_aspect_ratio_num,
-				self->pixel_aspect_ratio_denom, NULL);
-	}
+    if (par_denom)
+    {
+        gst_structure_set (struc, "pixel-aspect-ratio", GST_TYPE_FRACTION, par_num, par_denom, NULL);
+    }
+    else if (self->pixel_aspect_ratio_denom)
+    {
+        gst_structure_set (struc,
+                "pixel-aspect-ratio", GST_TYPE_FRACTION, self->pixel_aspect_ratio_num,
+                self->pixel_aspect_ratio_denom, NULL);
+    }
 
-	gst_structure_set (struc,
-			"interlaced", G_TYPE_BOOLEAN, FALSE, NULL);
-
+    gst_structure_set (struc,
+            "interlaced", G_TYPE_BOOLEAN, FALSE, NULL);
 
     gst_caps_append_structure (caps, struc);
 
