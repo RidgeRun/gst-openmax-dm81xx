@@ -655,11 +655,14 @@ omx_setup (GstOmxBaseFilter *omx_base)
       tAVCParams.eLevel = h264enc->level;
       tAVCParams.eProfile = h264enc->profile;
       tAVCParams.nPFrames = h264enc->i_period - 1;
+#ifdef B_FRAMES
       if (tAVCParams.eProfile != OMX_VIDEO_AVCProfileBaseline && (OMX_Video_RC_Storage == h264enc->ratecontrolPreset || OMX_Video_RC_User_Defined == h264enc->ratecontrolPreset))
         tAVCParams.nBFrames = 1;
       else
         tAVCParams.nBFrames = 0;
-
+#else
+        tAVCParams.nBFrames = 0;
+#endif
       OMX_SetParameter(gomx->omx_handle, OMX_IndexParamVideoAvc, &tAVCParams);
     }
 
