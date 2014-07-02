@@ -19,33 +19,33 @@
  *
  */
 
-#ifndef GSTOMX_VIDEOMIXER_VODALYS_H
-#define GSTOMX_VIDEOMIXER_VODALYS_H
+#ifndef GSTOMX_VIDEO_MOSAIC_H
+#define GSTOMX_VIDEO_MOSAIC_H
 
 #include <gst/gst.h>
 
 G_BEGIN_DECLS
 
-#define GST_OMX_VIDEOMIXER_VODALYS(obj) (GstOmxVideoMixerVodalys *) (obj)
-#define GST_OMX_VIDEOMIXER_VODALYS_TYPE (gst_omx_videomixer_vodalys_get_type ())
+#define GST_OMX_VIDEO_MOSAIC(obj) ((GstOmxVideoMosaic *) (obj))
+#define GST_OMX_VIDEO_MOSAIC_TYPE (gst_omx_video_mosaic_get_type ())
 
-typedef struct GstOmxVideoMixerVodalys GstOmxVideoMixerVodalys;
-typedef struct GstOmxVideoMixerVodalysClass GstOmxVideoMixerVodalysClass;
+typedef struct GstOmxVideoMosaic GstOmxVideoMosaic;
+typedef struct GstOmxVideoMosaicClass GstOmxVideoMosaicClass;
 
 #include "gstomx_base_filter21.h"
 #include <OMX_TI_Index.h>
 #include <OMX_TI_Common.h>
-struct GstOmxVideoMixerVodalys
+struct GstOmxVideoMosaic
 {
     GstOmxBaseFilter21 omx_base;
 };
 
-struct GstOmxVideoMixerVodalysClass
+struct GstOmxVideoMosaicClass
 {
     GstOmxBaseFilter21Class parent_class;
 };
 
-GType gst_omx_videomixer_vodalys_get_type (void);
+GType gst_omx_video_mosaic_get_type (void);
 
 G_END_DECLS
 

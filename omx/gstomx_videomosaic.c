@@ -23,7 +23,7 @@
  * 
  * */
 
-#include "gstomx_videomixer_vodalys.h"
+#include "gstomx_videomosaic.h"
 #include "gstomx.h"
 
 #define CAMERA_INPUT_IDX 0
@@ -35,7 +35,7 @@
 
 #define BG_COLOR BLACK
 
-GSTOMX_BOILERPLATE (GstOmxVideoMixerVodalys, gst_omx_videomixer_vodalys, GstOmxBaseFilter21, GST_OMX_BASE_FILTER21_TYPE);
+GSTOMX_BOILERPLATE (GstOmxVideoMosaic, gst_omx_video_mosaic, GstOmxBaseFilter21, GST_OMX_BASE_FILTER21_TYPE);
 
 
 static GstStaticPadTemplate sink_template_camera =
