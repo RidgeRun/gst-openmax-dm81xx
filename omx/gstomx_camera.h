@@ -45,7 +45,11 @@ struct GstOmxCamera
 
     /*< private >*/
     gint rowstride;     /**< rowstride of preview/video buffer */
-
+#if 0
+    GstClockTime duration;
+    GstClockTime running_time;
+    GstClockTime omx_delay;
+#endif
     GOmxPort *port;
     gint alreadystarted;
 

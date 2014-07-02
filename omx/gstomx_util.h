@@ -25,6 +25,7 @@
 
 #include <glib.h>
 #include <gst/video/video.h>
+#include <xdc/std.h>
 #include <OMX_Core.h>
 #include <OMX_Component.h>
 #include <OMX_TI_Video.h> /* for OMX_TI_VIDEO_CODINGTYPE enumeration including VP6 and VP7 formats*/

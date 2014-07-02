@@ -44,6 +44,9 @@ static OMX_BUFFERHEADERTYPE * request_buffer (GOmxPort *port);
 static void release_buffer (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer);
 static void setup_shared_buffer (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer);
 
+
+#define INFO(port, fmt, args...) \
+    GST_INFO ("<%s:%s> "fmt, GST_OBJECT_NAME ((port)->core->object), (port)->name, ##args)
 #define DEBUG(port, fmt, args...) \
     GST_DEBUG ("<%s:%s> "fmt, GST_OBJECT_NAME ((port)->core->object), (port)->name, ##args)
 #define LOG(port, fmt, args...) \
@@ -229,15 +232,15 @@ g_omx_port_allocate_buffers (GOmxPort *port)
 
         if (port->omx_allocate)
         {
-           
-            DEBUG (port, "%d: OMX_AllocateBuffer(), size=%d", i, size);
+
+            INFO (port, "%d: OMX_AllocateBuffer(), size=%d", i, size);
             eError =  OMX_AllocateBuffer (port->core->omx_handle,
                                 &port->buffers[i],
                                 port->port_index,
                                 NULL,
                                 size);
             if (eError != OMX_ErrorNone) {
-               DEBUG (port, "%d: OMX_AllocateBuffer(), returned=%x", eError);
+               INFO (port, "%d: OMX_AllocateBuffer(), returned=%x",i,  eError);
            }
 
             g_return_if_fail (port->buffers[i]);
@@ -255,14 +258,16 @@ g_omx_port_allocate_buffers (GOmxPort *port)
                 buffer_data = g_malloc (size);
             }
 
-            DEBUG (port, "%d: OMX_UseBuffer(), size=%d, share_buffer=%d", i, size, port->share_buffer);
-            OMX_UseBuffer (port->core->omx_handle,
+            INFO (port, "%d: OMX_UseBuffer(), size=%d, share_buffer=%d", i, size, port->share_buffer);
+            eError = OMX_UseBuffer (port->core->omx_handle,
                            &port->buffers[i],
                            port->port_index,
                            NULL,
                            size,
                            buffer_data);
-
+			if (eError != OMX_ErrorNone) {
+               INFO (port, "%d: OMX_UseBuffer(), returned=%x",i,  eError);
+            }
             g_return_if_fail (port->buffers[i]);
 
             if (port->share_buffer)
@@ -272,7 +277,7 @@ g_omx_port_allocate_buffers (GOmxPort *port)
             }
         }
     }
-    
+
     DEBUG (port, "end");
 }
 
@@ -368,7 +373,7 @@ g_omx_port_push_buffer (GOmxPort *port,
 {
     if (!port->always_copy && omx_buffer->pAppPrivate)
     {
-		/* Avoid a race condition of pAppPrivate getting set to null 
+		/* Avoid a race condition of pAppPrivate getting set to null
 		   after the buffer is submitted back again */
 		OMX_PTR appPrivate = omx_buffer->pAppPrivate;
         //omx_buffer->pAppPrivate = NULL;
@@ -385,12 +390,12 @@ static gint
 omxbuffer_index (GOmxPort *port, OMX_U8 *pBuffer)
 {
     int i;
-    
-    for (i=0; i < port->num_buffers; i++) 
+
+    for (i=0; i < port->num_buffers; i++)
         if (port->buffers[i]->pBuffer == pBuffer)
             return i;
 
-    return -1; 
+    return -1;
 }
 
 
@@ -404,7 +409,7 @@ request_buffer (GOmxPort *port)
 static void
 release_buffer (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer)
 {
-    
+
     OMX_ERRORTYPE eError = OMX_ErrorNone;
 
 
@@ -429,15 +434,15 @@ release_buffer (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer)
                     omx_buffer, omx_buffer ? omx_buffer->pAppPrivate : 0, omx_buffer ? omx_buffer->pBuffer : 0);
             eError = OMX_FillThisBuffer (port->core->omx_handle, omx_buffer);
             if (eError != OMX_ErrorNone) {
-           
+
            }
             break;
          default:
             break;
     }
 
-  
-   
+
+
 }
 
 /* NOTE ABOUT BUFFER SHARING:
@@ -495,7 +500,7 @@ send_prep_codec_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, GstBuffe
         omx_buffer->pBuffer = malloc (omx_buffer->nFilledLen);
     }
 
-    if (port->always_copy) 
+    if (port->always_copy)
     {
         memcpy (omx_buffer->pBuffer + omx_buffer->nOffset,
             GST_BUFFER_DATA (buf), omx_buffer->nFilledLen);
@@ -546,7 +551,7 @@ send_prep_buffer_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, GstBuff
         }
         else
         {
-            if (port->always_copy) 
+            if (port->always_copy)
             {
                 memcpy (omx_buffer->pBuffer + omx_buffer->nOffset,
                     GST_BUFFER_DATA (buf), omx_buffer->nFilledLen);
@@ -574,7 +579,7 @@ send_prep_buffer_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, GstBuff
 static void
 send_prep_wmv_codec_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, GstBuffer *buf)
 {
-   
+
     omx_buffer->nFlags |= OMX_BUFFERFLAG_CODECCONFIG;
 
     omx_buffer->nFilledLen = 0;//GST_BUFFER_SIZE (buf);
@@ -586,20 +591,20 @@ send_prep_wmv_codec_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, GstB
         omx_buffer->pBuffer = malloc (omx_buffer->nFilledLen);
     }
 
-    if (port->always_copy) 
+    if (port->always_copy)
     {
-       
+
          memcpy (omx_buffer->pBuffer + omx_buffer->nOffset,
             GST_BUFFER_DATA (buf), omx_buffer->nFilledLen);
     }
 
-   
+
 }
 
 static void
 send_prep_wmv_buffer_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, GstBuffer *buf)
 {
-   
+
 
     GstOmxBaseFilter *self = port->core->object;
 
@@ -618,7 +623,7 @@ send_prep_wmv_buffer_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, Gst
     }
     else
     {
-        if (port->always_copy && self->codec_data) 
+        if (port->always_copy && self->codec_data)
         {
             omx_buffer->nFilledLen = MIN (GST_BUFFER_SIZE (buf) + GST_BUFFER_SIZE(self->codec_data),
             omx_buffer->nAllocLen - omx_buffer->nOffset) ;
@@ -632,7 +637,7 @@ send_prep_wmv_buffer_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, Gst
         }
         else
 	{
-            if (port->always_copy) 
+            if (port->always_copy)
             {
                 omx_buffer->nFilledLen = MIN (GST_BUFFER_SIZE (buf),
                 omx_buffer->nAllocLen - omx_buffer->nOffset);
@@ -647,20 +652,20 @@ send_prep_wmv_buffer_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, Gst
         omx_buffer->nTimeStamp = gst_util_uint64_scale_int (
                 GST_BUFFER_TIMESTAMP (buf),
                 OMX_TICKS_PER_SECOND, GST_SECOND);
-		       
+
     }
 
     DEBUG (port, "omx_buffer: size=%lu, len=%lu, flags=%lu, offset=%lu, timestamp=%lld",
             omx_buffer->nAllocLen, omx_buffer->nFilledLen, omx_buffer->nFlags,
             omx_buffer->nOffset, omx_buffer->nTimeStamp);
-   
+
 }
 /*wmv sendprepare end*/
 
 static void
 send_prep_mpeg4_buffer_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, GstBuffer *buf)
 {
-   
+
 
     GstOmxBaseFilter *self = port->core->object;
 
@@ -679,7 +684,7 @@ send_prep_mpeg4_buffer_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, G
     }
     else
     {
-        if (port->always_copy && self->codec_data) 
+        if (port->always_copy && self->codec_data)
         {
             omx_buffer->nFilledLen = MIN (GST_BUFFER_SIZE (buf) + GST_BUFFER_SIZE(self->codec_data),
             omx_buffer->nAllocLen - omx_buffer->nOffset) ;
@@ -690,7 +695,7 @@ send_prep_mpeg4_buffer_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, G
         }
         else
 	{
-            if (port->always_copy) 
+            if (port->always_copy)
             {
                 omx_buffer->nFilledLen = MIN (GST_BUFFER_SIZE (buf),
                 omx_buffer->nAllocLen - omx_buffer->nOffset);
@@ -705,13 +710,13 @@ send_prep_mpeg4_buffer_data (GOmxPort *port, OMX_BUFFERHEADERTYPE *omx_buffer, G
         omx_buffer->nTimeStamp = gst_util_uint64_scale_int (
                 GST_BUFFER_TIMESTAMP (buf),
                 OMX_TICKS_PER_SECOND, GST_SECOND);
-		       
+
     }
 
     DEBUG (port, "omx_buffer: size=%lu, len=%lu, flags=%lu, offset=%lu, timestamp=%lld",
             omx_buffer->nAllocLen, omx_buffer->nFilledLen, omx_buffer->nFlags,
             omx_buffer->nOffset, omx_buffer->nTimeStamp);
-   
+
 }
 /*wmv sendprepare end*/
 
@@ -747,7 +752,7 @@ get_input_buffer_header (GOmxPort *port, GstBuffer *src)
     int index;
 
     index = omxbuffer_index(port, GST_BUFFER_DATA (src));
-     
+
     omx_buffer = port->buffers[index];
 
     omx_buffer->pBuffer = GST_BUFFER_DATA(src);
@@ -836,12 +841,12 @@ g_omx_port_send (GOmxPort *port, gpointer obj)
 	GstOmxBaseVideoDec *self = GST_OMX_BASE_VIDEODEC (port->core->object);;
 
 	if (GST_IS_BUFFER (obj))
-	{   
+	{
 		if(self->compression_format == OMX_VIDEO_CodingWMV)
 		{
 
-			if (G_UNLIKELY (GST_BUFFER_FLAG_IS_SET (obj, GST_BUFFER_FLAG_IN_CAPS))) 
-				send_prep = (SendPrep)send_prep_wmv_codec_data;            
+			if (G_UNLIKELY (GST_BUFFER_FLAG_IS_SET (obj, GST_BUFFER_FLAG_IN_CAPS)))
+				send_prep = (SendPrep)send_prep_wmv_codec_data;
 			else
 				send_prep = (SendPrep)send_prep_wmv_buffer_data;
 		}
@@ -849,15 +854,15 @@ g_omx_port_send (GOmxPort *port, gpointer obj)
 			if(self->compression_format == OMX_VIDEO_CodingMPEG4)
 			{
 
-				if (G_UNLIKELY (GST_BUFFER_FLAG_IS_SET (obj, GST_BUFFER_FLAG_IN_CAPS))) 
-					send_prep = (SendPrep)send_prep_wmv_codec_data;            
+				if (G_UNLIKELY (GST_BUFFER_FLAG_IS_SET (obj, GST_BUFFER_FLAG_IN_CAPS)))
+					send_prep = (SendPrep)send_prep_wmv_codec_data;
 				else
 					send_prep = (SendPrep)send_prep_mpeg4_buffer_data;
 			}
 			else
 			{
-				if (G_UNLIKELY (GST_BUFFER_FLAG_IS_SET (obj, GST_BUFFER_FLAG_IN_CAPS))) 
-					send_prep = (SendPrep)send_prep_codec_data;            
+				if (G_UNLIKELY (GST_BUFFER_FLAG_IS_SET (obj, GST_BUFFER_FLAG_IN_CAPS)))
+					send_prep = (SendPrep)send_prep_codec_data;
 				else
 					send_prep = (SendPrep)send_prep_buffer_data;
 			}
@@ -869,12 +874,12 @@ g_omx_port_send (GOmxPort *port, gpointer obj)
 	}
 
 	if (G_LIKELY (send_prep))
-	{ 
+	{
 		gint ret;
 		OMX_BUFFERHEADERTYPE *omx_buffer = NULL;
 
-		if (port->always_copy) 
-		{   
+		if (port->always_copy)
+		{
 
 			omx_buffer = request_buffer (port);
 			if (!omx_buffer)
@@ -903,7 +908,7 @@ g_omx_port_send (GOmxPort *port, gpointer obj)
 		}
 		else
 		{
-			if (GST_IS_OMXBUFFERTRANSPORT (obj)) 
+			if (GST_IS_OMXBUFFERTRANSPORT (obj))
 				omx_buffer = get_input_buffer_header (port, obj);
 			else if(GST_IS_EVENT (obj) && (GST_EVENT_TYPE (obj) == GST_EVENT_EOS)) {
 				omx_buffer = port->buffers[0];
@@ -1030,7 +1035,7 @@ g_omx_port_recv (GOmxPort *port)
             DEBUG (port, "empty buffer %p", omx_buffer); /* keep looping */
         }
 
-/* REVISIT: I don't know why but EZSDK OMX component sets this read-only 
+/* REVISIT: I don't know why but EZSDK OMX component sets this read-only
    flag for resolution > QVGA
  */
 #if 0
@@ -1075,7 +1080,7 @@ g_omx_port_recv (GOmxPort *port)
 #endif
         {
             setup_shared_buffer (port, omx_buffer);
-            if ((NULL == ret) || port->always_copy) 
+            if ((NULL == ret) || port->always_copy)
                 release_buffer (port, omx_buffer);
         }
     }

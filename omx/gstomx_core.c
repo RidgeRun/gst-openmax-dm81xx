@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-
 #include "gstomx_util.h"
 #include "gstomx.h"
 
@@ -83,17 +82,8 @@ static OMX_CALLBACKTYPE callbacks = { EventHandler, EmptyBufferDone, FillBufferD
 /*
  * Util
  */
-
 static void
-g_ptr_array_clear (GPtrArray *array)
-{
-    guint index;
-    for (index = 0; index < array->len; index++)
-        array->pdata[index] = NULL;
-}
-
-static void
-g_ptr_array_insert (GPtrArray *array,
+g_ptr_array_insert_custom (GPtrArray *array,
                     guint index,
                     gpointer data)
 {
@@ -103,6 +93,14 @@ g_ptr_array_insert (GPtrArray *array,
     }
 
     array->pdata[index] = data;
+}
+
+static void
+g_ptr_array_clear (GPtrArray *array)
+{
+    guint index;
+    for (index = 0; index < array->len; index++)
+        array->pdata[index] = NULL;
 }
 
 typedef void (*GOmxPortFunc) (GOmxPort *port);
@@ -119,8 +117,9 @@ core_for_each_port (GOmxCore *core,
 
         port = get_port (core, index);
 
-        if (port)
+        if (port) {
             func (port);
+        }
     }
 }
 
@@ -265,7 +264,7 @@ g_omx_core_init (GOmxCore *core)
         core->omx_state = OMX_StateLoaded;
 }
 
-void 
+void
 g_omx_core_change_state (GOmxCore *core, OMX_STATETYPE state)
 {
     change_state (core, state);
@@ -287,9 +286,9 @@ g_omx_core_deinit (GOmxCore *core)
         if (core->omx_handle)
         {
             #ifdef USE_STATIC
-            core->omx_error = OMX_FreeHandle (core->omx_handle);
-            #else
             core->omx_error = core->imp->sym_table.free_handle (core->omx_handle);
+            #else
+            core->omx_error = OMX_FreeHandle (core->omx_handle);
             #endif
             GST_DEBUG_OBJECT (core->object, "OMX_FreeHandle(%p) -> %s",
                 core->omx_handle, g_omx_error_to_str (core->omx_error));
@@ -406,7 +405,7 @@ g_omx_core_get_port (GOmxCore *core, const gchar *name, guint index)
     if (!port)
     {
         port = g_omx_port_new (core, name, index);
-        g_ptr_array_insert (core->ports, index, port);
+        g_ptr_array_insert_custom (core->ports, index, port);
     }
 
     return port;

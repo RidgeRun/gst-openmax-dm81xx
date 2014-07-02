@@ -66,6 +66,7 @@
 #include "gstomx_priority.h"
 #include "gstomx_rrparser.h"
 #include "gstomx_videomixer.h"
+#include "gstomx_videomosaic.h"
 #include "gstomxbufferalloc.h"
 
 #include "config.h"
@@ -133,6 +134,7 @@ static TableItem element_table[] =
     { "priority", NULL, NULL,  NULL, GST_RANK_PRIMARY, gst_tipriority_get_type },
     { "rr_h264parser", NULL, NULL,  NULL, GST_RANK_PRIMARY, gst_rrparser_get_type },
     { "omx_videomixer", 		"libOMX_Core.so",	"OMX.TI.VPSSM3.VFPC.INDTXSCWB", 	"", 				  GST_RANK_PRIMARY, 	 gst_omx_video_mixer_get_type },
+    { "omx_videomosaic", 		"libOMX_Core.so",	"OMX.TI.VPSSM3.VSWMOSAIC", 	"", 				  GST_RANK_PRIMARY, 	 gst_omx_video_mosaic_get_type },
     { NULL, NULL, NULL, NULL, 0, NULL },
 };
 

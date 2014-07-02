@@ -41,13 +41,13 @@ static void
 static gboolean gst_swcsc_exit_colorspace(GstSwcsc *swcsc);
 static void gst_swcsc_fixate_caps (GstBaseTransform *trans,
  GstPadDirection direction, GstCaps *caps, GstCaps *othercaps);
-static gboolean gst_swcsc_set_caps (GstBaseTransform *trans, 
+static gboolean gst_swcsc_set_caps (GstBaseTransform *trans,
  GstCaps *in, GstCaps *out);
 static GstCaps * gst_swcsc_transform_caps (GstBaseTransform *trans, GstPadDirection direction, GstCaps *caps);
 static GstFlowReturn gst_swcsc_transform (GstBaseTransform *trans,
  GstBuffer *inBuf, GstBuffer *outBuf);
 
-static void gst_swcsc_init (GstSwcsc 
+static void gst_swcsc_init (GstSwcsc
     *swcsc)
 {
     gst_base_transform_set_qos_enabled (GST_BASE_TRANSFORM(swcsc),
@@ -72,11 +72,11 @@ GType gst_swcsc_get_type(void)
         };
 
         object_type = g_type_register_static(GST_TYPE_BASE_TRANSFORM,
-                          "GstSwcsc", &object_info, 
+                          "GstSwcsc", &object_info,
                             (GTypeFlags)0);
 
         /* Initialize GST_LOG for this object */
-        GST_DEBUG_CATEGORY_INIT(gst_swcsc_debug, 
+        GST_DEBUG_CATEGORY_INIT(gst_swcsc_debug,
             "swcsc", 0, " Image colorspace");
 
         GST_LOG("initialized get_type\n");
@@ -122,7 +122,7 @@ gst_transform_event (GstBaseTransform * trans, GstEvent * event)
   return TRUE;
 }
 
-static void gst_swcsc_class_init(GstSwcscClass 
+static void gst_swcsc_class_init(GstSwcscClass
     *klass)
 {
     GObjectClass    *gobject_class;
@@ -131,16 +131,16 @@ static void gst_swcsc_class_init(GstSwcscClass
     gobject_class    = (GObjectClass*)    klass;
     trans_class      = (GstBaseTransformClass *) klass;
 
-    gobject_class->finalize = 
+    gobject_class->finalize =
         (GObjectFinalizeFunc)gst_swcsc_exit_colorspace;
 
-    trans_class->transform_caps = 
+    trans_class->transform_caps =
         GST_DEBUG_FUNCPTR(gst_swcsc_transform_caps);
-    trans_class->set_caps  = 
+    trans_class->set_caps  =
         GST_DEBUG_FUNCPTR(gst_swcsc_set_caps);
-    trans_class->transform = 
+    trans_class->transform =
         GST_DEBUG_FUNCPTR(gst_swcsc_transform);
-    trans_class->fixate_caps = 
+    trans_class->fixate_caps =
         GST_DEBUG_FUNCPTR(gst_swcsc_fixate_caps);
     trans_class->passthrough_on_same_caps = TRUE;
     trans_class->event =
@@ -184,14 +184,19 @@ static void _convert_420psemi_to_420p (unsigned char * lBuffPtr, unsigned char *
     }
 }
 
-static void convert_420psemi_to_420p(unsigned char* buffer, int xoffset, int yoffset, int width, 
+static void convert_420psemi_to_420p(unsigned char* buffer, int xoffset, int yoffset, int width,
     int height, int size, unsigned char *output)
 {
     int stride, ref_height;
     unsigned char *cptr;
 
-    stride = ((width + (2 * xoffset) + 127) & 0xFFFFFF80);
-    ref_height = height + (yoffset << 1);
+    if ((xoffset == 0) && (yoffset == 0)) {
+        stride = width;
+        ref_height = height;
+    } else {
+        stride = ((width + (2 * xoffset) + 127) & 0xFFFFFF80);
+        ref_height = height + (yoffset << 1);
+    }
 
     cptr = (unsigned char *) ((unsigned long) buffer + ((size / 3) << 1));
     _convert_420psemi_to_420p (buffer, cptr, xoffset, yoffset, stride, ref_height, width, height, output);
@@ -203,8 +208,8 @@ static GstFlowReturn gst_swcsc_transform (GstBaseTransform *trans,
     GstSwcsc *self = GST_SWCSC (trans);
 
     GST_LOG("begin transform\n");
- 
-    convert_420psemi_to_420p(GST_BUFFER_DATA(src), self->crop_left, self->crop_top, self->width, self->height, 
+
+    convert_420psemi_to_420p(GST_BUFFER_DATA(src), self->crop_left, self->crop_top, self->width, self->height,
         GST_BUFFER_SIZE(src), GST_BUFFER_DATA(dst));
 
     gst_buffer_set_data (dst, GST_BUFFER_DATA(dst), self->width * self->height * 1.5);
@@ -213,7 +218,7 @@ static GstFlowReturn gst_swcsc_transform (GstBaseTransform *trans,
     return GST_FLOW_OK;
 }
 
-static GstCaps * gst_swcsc_transform_caps (GstBaseTransform 
+static GstCaps * gst_swcsc_transform_caps (GstBaseTransform
  *trans, GstPadDirection direction, GstCaps *from)
 {
     GstSwcsc  *swcsc;
@@ -239,7 +244,7 @@ static GstCaps * gst_swcsc_transform_caps (GstBaseTransform
     return result;
 }
 
-static gboolean gst_swcsc_set_caps (GstBaseTransform *trans, 
+static gboolean gst_swcsc_set_caps (GstBaseTransform *trans,
     GstCaps *in, GstCaps *out)
 {
     GstSwcsc *self  = GST_SWCSC(trans);
@@ -266,17 +271,17 @@ static void gst_swcsc_fixate_caps (GstBaseTransform *trans,
     GST_LOG("begin fixating cap\n");
 
     ret = gst_video_format_parse_caps(caps, NULL, &width, &height);
-    if (!ret) 
+    if (!ret)
         return;
 
     ret = gst_video_parse_caps_framerate(caps, &framerateNum, &framerateDen);
-    if (!ret) 
+    if (!ret)
         return;
 
     outs = gst_caps_get_structure(othercaps, 0);
     gst_structure_fixate_field_nearest_int (outs, "width", width);
     gst_structure_fixate_field_nearest_int (outs, "height", height);
-    gst_structure_fixate_field_nearest_fraction (outs, "framerate", 
+    gst_structure_fixate_field_nearest_fraction (outs, "framerate",
         framerateNum, framerateDen);
 
     GST_LOG("end fixating cap\n");

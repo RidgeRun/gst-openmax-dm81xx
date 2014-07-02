@@ -19,20 +19,34 @@
  *
  */
 
-#ifndef GSTOMX_H
-#define GSTOMX_H
+#ifndef GSTOMX_VIDEO_MOSAIC_H
+#define GSTOMX_VIDEO_MOSAIC_H
 
-#include <xdc/std.h>
 #include <gst/gst.h>
-#include <stdio.h>
 
 G_BEGIN_DECLS
 
-GST_DEBUG_CATEGORY_EXTERN (gstomx_debug);
-GST_DEBUG_CATEGORY_EXTERN (gstomx_util_debug);
-GST_DEBUG_CATEGORY_EXTERN (gstomx_ppm);
-#define GST_CAT_DEFAULT gstomx_debug
+#define GST_OMX_VIDEO_MOSAIC(obj) ((GstOmxVideoMosaic *) (obj))
+#define GST_OMX_VIDEO_MOSAIC_TYPE (gst_omx_video_mosaic_get_type ())
+
+typedef struct GstOmxVideoMosaic GstOmxVideoMosaic;
+typedef struct GstOmxVideoMosaicClass GstOmxVideoMosaicClass;
+
+#include "gstomx_base_filter21.h"
+#include <OMX_TI_Index.h>
+#include <OMX_TI_Common.h>
+struct GstOmxVideoMosaic
+{
+    GstOmxBaseFilter21 omx_base;
+};
+
+struct GstOmxVideoMosaicClass
+{
+    GstOmxBaseFilter21Class parent_class;
+};
+
+GType gst_omx_video_mosaic_get_type (void);
 
 G_END_DECLS
 
-#endif /* GSTOMX_H */
+#endif /* GSTOMX_DUMMY_H */

@@ -275,7 +275,7 @@ set_property (GObject *obj,
                         self->in_port : self->out_port;
                 G_OMX_PORT_GET_DEFINITION (port, &param);
 
-				g_return_if_fail(nBufferCountActual >= param.nBufferCountMin);				
+				//g_return_if_fail(nBufferCountActual >= param.nBufferCountMin);				
 
 				param.nBufferCountActual = nBufferCountActual;
                 G_OMX_PORT_SET_DEFINITION (port, &param);
@@ -729,7 +729,7 @@ out_flushing:
 
         if (error_msg)
         {
-            GST_ELEMENT_ERROR (self, STREAM, FAILED, (NULL), (error_msg));
+	    GST_ELEMENT_ERROR (self, STREAM, FAILED, (NULL), (error_msg));
             ret = GST_FLOW_ERROR;
         }
 
@@ -755,7 +755,7 @@ pad_event (GstPad *pad,
     switch (GST_EVENT_TYPE (event))
     {
         case GST_EVENT_EOS:
-            printf ("Recieved EOS event, press <CTRL+C> to terminate pipeline.\n");
+            /* printf ("Recieved EOS event, press <CTRL+C> to terminate pipeline.\n"); */
             /* if we are init'ed, and there is a running loop; then
              * if we get a buffer to inform it of EOS, let it handle the rest
              * in any other case, we send EOS */
