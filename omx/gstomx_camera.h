@@ -53,6 +53,8 @@ struct GstOmxCamera
 	gint cap_mode;
 	gint input_format;
 	gint scan_type;
+	gint override_colorspace;
+	gint vif_mode;
 };
 
 struct GstOmxCameraClass
