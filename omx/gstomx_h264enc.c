@@ -667,6 +667,38 @@ omx_setup (GstOmxBaseFilter *omx_base)
 		OMX_SetParameter(gomx->omx_handle, OMX_TI_IndexParamVideoEncoderPreset,	&tEncoderPreset);
     }
 
+    {
+		if (self->interlaced) {
+			OMX_VIDEO_PARAM_STATICPARAMS   tStaticParam;
+
+			_G_OMX_INIT_PARAM(&tStaticParam);
+
+			tStaticParam.nPortIndex = 1;
+
+			OMX_GetParameter(gomx->omx_handle, OMX_TI_IndexParamVideoStaticParams, &tStaticParam);
+
+			/* for interlace, base profile can not be used */
+
+			tStaticParam.videoStaticParams.h264EncStaticParams.videnc2Params.encodingPreset = XDM_USER_DEFINED;
+			tStaticParam.videoStaticParams.h264EncStaticParams.videnc2Params.profile = IH264_HIGH_PROFILE;
+			tStaticParam.videoStaticParams.h264EncStaticParams.videnc2Params.level = IH264_LEVEL_42;
+
+			/* setting Interlace mode */
+			tStaticParam.videoStaticParams.h264EncStaticParams.videnc2Params.inputContentType = IVIDEO_INTERLACED;
+			tStaticParam.videoStaticParams.h264EncStaticParams.bottomFieldIntra = 0;
+			tStaticParam.videoStaticParams.h264EncStaticParams.interlaceCodingType = IH264_INTERLACE_FIELDONLY_ARF;
+
+			tStaticParam.videoStaticParams.h264EncStaticParams.videnc2Params.encodingPreset = XDM_DEFAULT;
+			tStaticParam.videoStaticParams.h264EncStaticParams.videnc2Params.rateControlPreset = IVIDEO_STORAGE;
+
+			tStaticParam.videoStaticParams.h264EncStaticParams.intraCodingParams.lumaIntra4x4Enable = 0x1f;
+			tStaticParam.videoStaticParams.h264EncStaticParams.intraCodingParams.lumaIntra8x8Enable = 0x1f;
+
+			OMX_SetParameter(gomx->omx_handle, OMX_TI_IndexParamVideoStaticParams, &tStaticParam);
+		}
+
+	}
+
     GST_INFO_OBJECT (omx_base, "end");
 }
 
@@ -688,7 +720,10 @@ settings_changed_cb (GOmxCore *core)
 
         G_OMX_PORT_GET_DEFINITION (omx_base_filter->out_port, &param);
         width = param.format.video.nFrameWidth;
-        height = param.format.video.nFrameHeight;
+        if (omx_base->interlaced)
+			height = 2*param.format.video.nFrameHeight;
+		else
+			height = param.format.video.nFrameHeight;
     }
 
     {
