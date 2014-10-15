@@ -40,6 +40,57 @@
 #include <OMX_CoreExt.h>
 #include <OMX_IndexExt.h>
 
+char* PORT_NAMES(int i)
+{
+	switch (i)
+	{
+		case 1: return "VIP1_PORTA";
+		case 2: return "VIP1_PORTB";
+		case 3: return "VIP2_PORTA";
+		case 4: return "VIP2_PORTB";
+		break;
+	}
+	return NULL;
+}
+
+char* MODE_NAMES(int i)
+{
+	switch (i)
+	{
+		case 1: return "SC_NON_MUX";
+		case 2: return "MC_LINE_MUX";
+		case 3: return "MC_PEL_MUX";
+		case 4: return "SC_DISCRETESYNC";
+		case 5: return "MC_LINE_MUX_SPLIT_LINE";
+		case 6: return "SC_DISCRETESYNC_ACTVID_VSYNC";
+		break;
+	}
+	return NULL;
+}
+
+char* VIF_NAMES(int i)
+{
+	switch (i)
+	{
+		case 1: return "08BIT";
+		case 2: return "16BIT";
+		case 3: return "24BIT";
+		break;
+	}
+	return NULL;
+}
+
+char* TYPE_NAMES(int i)
+{
+	switch (i)
+	{
+		case 1: return "Progressive";
+		case 2: return "Interlaced";
+		break;
+	}
+	return NULL;
+}
+
 #define MAX_SHIFTS	30
 /**
  * SECTION:element-omx_camera
@@ -62,6 +113,8 @@ enum
   ARG_CAP_MODE,
   ARG_SCAN_TYPE,
   ARG_SKIP_FRAMES,
+  ARG_VIF_MODE,
+  ARG_OVERRIDE_COLORSPACE
 };
 
 GSTOMX_BOILERPLATE (GstLegacyOmxCamera, gst_omx_camera, GstLegacyOmxBaseSrc,
@@ -135,6 +188,13 @@ src_setcaps (GstPad * pad, GstCaps * caps)
       }
     }
 
+	if (self->override_colorspace)
+	{
+		param.format.video.eColorFormat = OMX_COLOR_FormatYCbYCr;
+		configure_port = TRUE;
+		printf("OVERRIDING COLORSPACE (forcing YUY2).....\n");
+	}
+
     /*Setting compression Format */
     param.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
 
@@ -166,17 +226,21 @@ src_setcaps (GstPad * pad, GstCaps * caps)
     OMX_PARAM_VFCC_HWPORT_ID sHwPortId;
     _G_OMX_INIT_PARAM (&sHwPortId);
     sHwPortId.eHwPortId = self->input_interface;
+printf("INPUT INTERFACE: %s\n", PORT_NAMES(sHwPortId.eHwPortId));
     G_OMX_PORT_SET_PARAM (self->port,
         (OMX_INDEXTYPE) OMX_TI_IndexParamVFCCHwPortID, (OMX_PTR) & sHwPortId);
 
     OMX_PARAM_VFCC_HWPORT_PROPERTIES sHwPortParam;
     _G_OMX_INIT_PARAM (&sHwPortParam);
     sHwPortParam.eCaptMode = self->cap_mode;
-    sHwPortParam.eVifMode = OMX_VIDEO_CaptureVifMode_16BIT;
+printf("CAP MODE: %s\n", MODE_NAMES(sHwPortParam.eCaptMode));
+    sHwPortParam.eVifMode = self->vif_mode;
+printf("VIF MODE: %s\n", VIF_NAMES(sHwPortParam.eVifMode));
     sHwPortParam.nMaxHeight = height;
     sHwPortParam.nMaxWidth = width;
     sHwPortParam.nMaxChnlsPerHwPort = 1;
     sHwPortParam.eScanType = self->scan_type;
+printf("INTERLACE MODE: %s\n", TYPE_NAMES(sHwPortParam.eScanType));
 
     structure = gst_caps_get_structure (caps, 0);
 
@@ -316,6 +380,10 @@ set_property (GObject * obj,
         self->input_interface = OMX_VIDEO_CaptureHWPortVIP1_PORTA;
       } else if (!strcmp (str_value, "VIP2_PORTA")) {
         self->input_interface = OMX_VIDEO_CaptureHWPortVIP2_PORTA;
+      } else if (!strcmp (str_value, "VIP1_PORTB")) {
+        self->input_interface = OMX_VIDEO_CaptureHWPortVIP1_PORTB;
+      } else if (!strcmp (str_value, "VIP2_PORTB")) {
+        self->input_interface = OMX_VIDEO_CaptureHWPortVIP2_PORTB;
       } else {
         GST_WARNING_OBJECT (omx_base, "%s unsupported", str_value);
         g_return_if_fail (0);
@@ -325,11 +393,20 @@ set_property (GObject * obj,
     case ARG_CAP_MODE:
     {
       str_value = g_value_dup_string (value);
-      if (!strcmp (str_value, "MC_LINE_MUX")) {
+      if (!strcmp (str_value, "MC_LINE_MUX"))
         self->cap_mode = OMX_VIDEO_CaptureModeMC_LINE_MUX;
-      } else if (!strcmp (str_value, "SC_NON_MUX")) {
+      else if (!strcmp (str_value, "SC_NON_MUX"))
         self->cap_mode = OMX_VIDEO_CaptureModeSC_NON_MUX;
-      } else {
+	  else if (!strcmp (str_value, "MC_PEL_MUX"))
+		  self->cap_mode = OMX_VIDEO_CaptureModeMC_PEL_MUX;
+	  else if (!strcmp (str_value, "SC_DISCRETESYNC"))
+		  self->cap_mode = OMX_VIDEO_CaptureModeSC_DISCRETESYNC;
+	  else if (!strcmp (str_value, "MC_LINE_MUX_SPLIT_LINE"))
+		  self->cap_mode = OMX_VIDEO_CaptureModeMC_LINE_MUX_SPLIT_LINE;
+	  else if (!strcmp (str_value, "SC_DISCRETESYNC_ACTVID_VSYNC"))
+		  self->cap_mode = OMX_VIDEO_CaptureModeSC_DISCRETESYNC_ACTVID_VSYNC;
+      else
+	  {
         GST_WARNING_OBJECT (omx_base, "%s unsupported", str_value);
         g_return_if_fail (0);
       }
@@ -381,6 +458,28 @@ set_property (GObject * obj,
       break;
     }
 
+	case ARG_VIF_MODE:
+    {
+      str_value = g_value_dup_string (value);
+      if (!strcmp (str_value, "24BIT"))
+        self->vif_mode = OMX_VIDEO_CaptureVifMode_24BIT;
+      else if (!strcmp (str_value, "16BIT"))
+        self->vif_mode = OMX_VIDEO_CaptureVifMode_16BIT;
+      else
+        self->vif_mode = OMX_VIDEO_CaptureVifMode_08BIT;
+      break;
+    }
+
+	case ARG_OVERRIDE_COLORSPACE:
+    {
+      str_value = g_value_dup_string (value);
+      if (!strcmp (str_value, "true"))
+        self->override_colorspace = TRUE;
+      else
+        self->override_colorspace = FALSE;
+      break;
+    }
+
     default:
     {
       G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -399,6 +498,10 @@ get_property (GObject * obj, guint prop_id, GValue * value, GParamSpec * pspec)
     {
       if (self->input_interface == OMX_VIDEO_CaptureHWPortVIP2_PORTA)
         g_value_set_string (value, "VIP2_PORTA");
+      else if (self->input_interface == OMX_VIDEO_CaptureHWPortVIP2_PORTB)
+        g_value_set_string (value, "VIP2_PORTB");
+      else if (self->input_interface == OMX_VIDEO_CaptureHWPortVIP1_PORTB)
+        g_value_set_string (value, "VIP1_PORTB");
       else
         g_value_set_string (value, "VIP1_PORTA");
       break;
@@ -406,9 +509,17 @@ get_property (GObject * obj, guint prop_id, GValue * value, GParamSpec * pspec)
     case ARG_CAP_MODE:
     {
       if (self->cap_mode == OMX_VIDEO_CaptureModeMC_LINE_MUX)
-        g_value_set_string (value, "MC_LINE_MUX");
+		  g_value_set_string (value, "MC_LINE_MUX");
+	  else if (self->cap_mode == OMX_VIDEO_CaptureModeMC_PEL_MUX)
+		  g_value_set_string (value, "MC_PEL_MUX");
+	  else if (self->cap_mode == OMX_VIDEO_CaptureModeSC_DISCRETESYNC)
+		  g_value_set_string (value, "SC_DISCRETESYNC");
+	  else if (self->cap_mode == OMX_VIDEO_CaptureModeMC_LINE_MUX_SPLIT_LINE)
+		  g_value_set_string (value, "MC_LINE_MUX_SPLIT_LINE");
+	  else if (self->cap_mode == OMX_VIDEO_CaptureModeSC_DISCRETESYNC_ACTVID_VSYNC)
+		  g_value_set_string (value, "SC_DISCRETESYNC_ACTVID_VSYNC");
       else
-        g_value_set_string (value, "SC_NON_MUX");
+          g_value_set_string (value, "SC_NON_MUX");
       break;
     }
     case ARG_SCAN_TYPE:
@@ -427,6 +538,26 @@ get_property (GObject * obj, guint prop_id, GValue * value, GParamSpec * pspec)
           OMX_TI_IndexConfigVFCCFrameSkip, &sCapSkipFrames);
 
       g_value_set_uint (value, sCapSkipFrames.frameSkipMask);
+      break;
+    }
+
+	case ARG_VIF_MODE:
+    {
+      if (self->vif_mode == OMX_VIDEO_CaptureVifMode_24BIT)
+        g_value_set_string (value, "24BIT");
+      else if (self->vif_mode == OMX_VIDEO_CaptureVifMode_16BIT)
+        g_value_set_string (value, "16BIT");
+	  else
+		g_value_set_string (value, "08BIT");
+      break;
+    }
+
+	case ARG_OVERRIDE_COLORSPACE:
+    {
+      if (self->override_colorspace == TRUE)
+        g_value_set_string (value, "true");
+      else
+		g_value_set_string (value, "false");
       break;
     }
 
@@ -484,13 +615,19 @@ type_class_init (gpointer g_class, gpointer class_data)
       g_param_spec_string ("input-interface", "Video input interface",
           "The video input interface from where capture image/video is obtained (see below)"
           "\n\t\t\t VIP1_PORTA "
-          "\n\t\t\t VIP2_PORTA ", "VIP1_PORTA", G_PARAM_READWRITE));
+          "\n\t\t\t VIP1_PORTB "
+          "\n\t\t\t VIP2_PORTA "
+          "\n\t\t\t VIP2_PORTB ", "VIP1_PORTA", G_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class, ARG_CAP_MODE,
       g_param_spec_string ("capture-mode", "Multiplex/Sync mode",
           "Video capture mode (Multiplexed/Sync) (see below)"
-          "\n\t\t\t MC_LINE_MUX "
-          "\n\t\t\t SC_NON_MUX ", "SC_NON_MUX", G_PARAM_READWRITE));
+          "\n\t\t\t SC_NON_MUX "
+		  "\n\t\t\t MC_LINE_MUX "
+		  "\n\t\t\t MC_PEL_MUX "
+		  "\n\t\t\t SC_DISCRETESYNC "
+		  "\n\t\t\t MC_LINE_MUX_SPLIT_LINE "
+		  "\n\t\t\t SC_DISCRETESYNC_ACTVID_VSYNC ", "SC_NON_MUX", G_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class, ARG_SCAN_TYPE,
       g_param_spec_string ("scan-type", "Video scan mode",
@@ -502,6 +639,19 @@ type_class_init (gpointer g_class, gpointer class_data)
       g_param_spec_uint ("skip-frames", "skip frames",
           "Skip this amount of frames after a vaild frame",
           0, 30, 0, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, ARG_VIF_MODE,
+      g_param_spec_string ("vif-mode", "Bit width of capture",
+          "Video capture size (8, 16, 24 bits) (see below)"
+          "\n\t\t\t 08BIT "
+		  "\n\t\t\t 16BIT "
+		  "\n\t\t\t 24BIT ", "08BIT", G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, ARG_OVERRIDE_COLORSPACE,
+      g_param_spec_string ("override-colorspace", "Force capture of YUY2 video",
+          "Set to true to disable colorspace conversion in the camera"
+          "\n\t\t\t true "
+		  "\n\t\t\t false ", "false", G_PARAM_READWRITE));
 
 }
 
@@ -533,6 +683,8 @@ type_instance_init (GTypeInstance * instance, gpointer g_class)
   self->input_interface = OMX_VIDEO_CaptureHWPortVIP1_PORTA;
   self->cap_mode = OMX_VIDEO_CaptureModeSC_NON_MUX;
   self->scan_type = OMX_VIDEO_CaptureScanTypeProgressive;
+  self->vif_mode = OMX_VIDEO_CaptureVifMode_08BIT;
+  self->override_colorspace = FALSE;
 
   /* disable all ports to begin with: */
   g_omx_port_disable (self->port);
