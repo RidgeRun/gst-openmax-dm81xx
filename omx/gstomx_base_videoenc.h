@@ -45,7 +45,6 @@ struct GstOmxBaseVideoEnc
     GstOmxBaseFilterCb omx_setup;
 
     gint rowstride;     /**< rowstride of input buffer */
-    gboolean interlaced;
 };
 
 struct GstOmxBaseVideoEncClass

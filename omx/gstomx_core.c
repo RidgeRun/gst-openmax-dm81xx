@@ -132,7 +132,7 @@ core_for_each_port (GOmxCore *core,
 /**
  * Construct new core
  *
- * @object: the GstOmx object (ie. GstOmxBaseFilter, GstOmxBaseSrc, or
+ * @object: the GstOmx object (ie. GstOmxBaseFilter, GstLegacyOmxBaseSrc, or
  *    GstOmxBaseSink).  The GstOmx object should have "component-role",
  *    "component-name", and "library-name" properties.
  */

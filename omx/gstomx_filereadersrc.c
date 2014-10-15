@@ -29,7 +29,7 @@ enum
     ARG_FILE_NAME,
 };
 
-GSTOMX_BOILERPLATE (GstOmxFilereaderSrc, gst_omx_filereadersrc, GstOmxBaseSrc, GST_OMX_BASE_SRC_TYPE);
+GSTOMX_BOILERPLATE (GstOmxFilereaderSrc, gst_omx_filereadersrc, GstLegacyOmxBaseSrc, GST_OMX_BASE_SRC_TYPE);
 
 static GstCaps *
 generate_src_template (void)
@@ -74,7 +74,7 @@ static gboolean
 setcaps (GstBaseSrc *gst_src,
          GstCaps *caps)
 {
-    GstOmxBaseSrc *self;
+    GstLegacyOmxBaseSrc *self;
 
     self = GST_OMX_BASE_SRC (gst_src);
 
@@ -88,7 +88,7 @@ setcaps (GstBaseSrc *gst_src,
 static void
 settings_changed_cb (GOmxCore *core)
 {
-    GstOmxBaseSrc *omx_base;
+    GstLegacyOmxBaseSrc *omx_base;
 
     omx_base = core->object;
 
@@ -98,7 +98,7 @@ settings_changed_cb (GOmxCore *core)
 }
 
 static void
-setup_ports (GstOmxBaseSrc *base_src)
+setup_ports (GstLegacyOmxBaseSrc *base_src)
 {
     GOmxCore *gomx;
     GstOmxFilereaderSrc *self;
@@ -188,7 +188,7 @@ static void
 type_instance_init (GTypeInstance *instance,
                     gpointer g_class)
 {
-    GstOmxBaseSrc *omx_base;
+    GstLegacyOmxBaseSrc *omx_base;
 
     omx_base = GST_OMX_BASE_SRC (instance);
 

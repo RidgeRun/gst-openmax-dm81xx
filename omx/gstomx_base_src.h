@@ -27,17 +27,17 @@
 
 G_BEGIN_DECLS
 
-#define GST_OMX_BASE_SRC(obj) (GstOmxBaseSrc *) (obj)
+#define GST_OMX_BASE_SRC(obj) (GstLegacyOmxBaseSrc *) (obj)
 #define GST_OMX_BASE_SRC_TYPE (gst_omx_base_src_get_type ())
-#define GST_OMX_BASE_SRC_CLASS(obj) (GstOmxBaseSrcClass *) (obj)
+#define GST_OMX_BASE_SRC_CLASS(obj) (GstLegacyOmxBaseSrcClass *) (obj)
 
-typedef struct GstOmxBaseSrc GstOmxBaseSrc;
-typedef struct GstOmxBaseSrcClass GstOmxBaseSrcClass;
-typedef void (*GstOmxBaseSrcCb) (GstOmxBaseSrc *self);
+typedef struct GstLegacyOmxBaseSrc GstLegacyOmxBaseSrc;
+typedef struct GstLegacyOmxBaseSrcClass GstLegacyOmxBaseSrcClass;
+typedef void (*GstLegacyOmxBaseSrcCb) (GstLegacyOmxBaseSrc *self);
 
 #include <gstomx_util.h>
 
-struct GstOmxBaseSrc
+struct GstLegacyOmxBaseSrc
 {
     GstBaseSrc element;
 
@@ -47,10 +47,10 @@ struct GstOmxBaseSrc
     char *omx_role;
     char *omx_component;
     char *omx_library;
-    GstOmxBaseSrcCb setup_ports;
+    GstLegacyOmxBaseSrcCb setup_ports;
 };
 
-struct GstOmxBaseSrcClass
+struct GstLegacyOmxBaseSrcClass
 {
     GstBaseSrcClass parent_class;
     gint out_port_index;
@@ -60,8 +60,8 @@ GType gst_omx_base_src_get_type (void);
 
 /* protected helper method which can be used by derived classes:
  */
-void gst_omx_base_src_setup_ports (GstOmxBaseSrc *self);
-GstFlowReturn gst_omx_base_src_create_from_port (GstOmxBaseSrc *self,
+void gst_omx_base_src_setup_ports (GstLegacyOmxBaseSrc *self);
+GstFlowReturn gst_omx_base_src_create_from_port (GstLegacyOmxBaseSrc *self,
         GOmxPort *out_port,
         GstBuffer **ret_buf);
 

@@ -132,7 +132,7 @@ sink_setcaps (GstPad *pad,
     GstVideoFormat format;
     gint width, height, rowstride;
     const GValue *framerate = NULL;
-    
+
     self = GST_OMX_BASE_VIDEOENC (GST_PAD_PARENT (pad));
     omx_base = GST_OMX_BASE_FILTER (self);
 
@@ -153,9 +153,6 @@ sink_setcaps (GstPad *pad,
                             GST_TIME_ARGS (omx_base->duration));
     }
 
-    if (gst_structure_get_boolean (gst_caps_get_structure (caps, 0), "interlaced", &self->interlaced))
-		self->interlaced = TRUE;
-
     if (gst_video_format_parse_caps_strided (caps,
             &format, &width, &height, &rowstride))
     {
@@ -166,11 +163,7 @@ sink_setcaps (GstPad *pad,
 
         param.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar ;
         param.format.video.nFrameWidth  = width;
-        if (self->interlaced)
-			param.format.video.nFrameHeight = height/2;
-		else
-			param.format.video.nFrameHeight = height;
-
+        param.format.video.nFrameHeight = height;
         if (!rowstride)
             rowstride = (width + 15) & 0xFFFFFFF0;
         param.format.video.nStride      = self->rowstride = rowstride;

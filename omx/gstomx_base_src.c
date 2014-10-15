@@ -33,10 +33,10 @@ enum
     ARG_NUM_OUTPUT_BUFFERS,
 };
 
-GSTOMX_BOILERPLATE (GstOmxBaseSrc, gst_omx_base_src, GstBaseSrc, GST_TYPE_BASE_SRC);
+GSTOMX_BOILERPLATE (GstLegacyOmxBaseSrc, gst_omx_base_src, GstBaseSrc, GST_TYPE_BASE_SRC);
 
 void
-gst_omx_base_src_setup_ports (GstOmxBaseSrc *self)
+gst_omx_base_src_setup_ports (GstLegacyOmxBaseSrc *self)
 {
     OMX_PARAM_PORTDEFINITIONTYPE param;
 
@@ -53,7 +53,7 @@ gst_omx_base_src_setup_ports (GstOmxBaseSrc *self)
 static gboolean
 start (GstBaseSrc *gst_base)
 {
-    GstOmxBaseSrc *self;
+    GstLegacyOmxBaseSrc *self;
 
     self = GST_OMX_BASE_SRC (gst_base);
 
@@ -71,7 +71,7 @@ start (GstBaseSrc *gst_base)
 static gboolean
 stop (GstBaseSrc *gst_base)
 {
-    GstOmxBaseSrc *self;
+    GstLegacyOmxBaseSrc *self;
 
     self = GST_OMX_BASE_SRC (gst_base);
 
@@ -92,7 +92,7 @@ stop (GstBaseSrc *gst_base)
 static void
 finalize (GObject *obj)
 {
-    GstOmxBaseSrc *self;
+    GstLegacyOmxBaseSrc *self;
 
     self = GST_OMX_BASE_SRC (obj);
 
@@ -108,7 +108,7 @@ finalize (GObject *obj)
 /* protected helper method which can be used by derived classes:
  */
 GstFlowReturn
-gst_omx_base_src_create_from_port (GstOmxBaseSrc *self,
+gst_omx_base_src_create_from_port (GstLegacyOmxBaseSrc *self,
         GOmxPort *out_port,
         GstBuffer **ret_buf)
 {
@@ -182,7 +182,7 @@ create (GstBaseSrc *gst_base,
         guint length,
         GstBuffer **ret_buf)
 {
-    GstOmxBaseSrc *self = GST_OMX_BASE_SRC (gst_base);
+    GstLegacyOmxBaseSrc *self = GST_OMX_BASE_SRC (gst_base);
 
     GST_LOG_OBJECT (self, "state: %d", self->gomx->omx_state);
 
@@ -201,7 +201,7 @@ static gboolean
 handle_event (GstBaseSrc *gst_base,
               GstEvent *event)
 {
-    GstOmxBaseSrc *self;
+    GstLegacyOmxBaseSrc *self;
 
     self = GST_OMX_BASE_SRC (gst_base);
 
@@ -234,7 +234,7 @@ set_property (GObject *obj,
               const GValue *value,
               GParamSpec *pspec)
 {
-    GstOmxBaseSrc *self;
+    GstLegacyOmxBaseSrc *self;
 
     self = GST_OMX_BASE_SRC (obj);
 
@@ -277,7 +277,7 @@ get_property (GObject *obj,
               GValue *value,
               GParamSpec *pspec)
 {
-    GstOmxBaseSrc *self;
+    GstLegacyOmxBaseSrc *self;
 
     self = GST_OMX_BASE_SRC (obj);
 
@@ -316,7 +316,7 @@ type_class_init (gpointer g_class,
 {
     GObjectClass *gobject_class;
     GstBaseSrcClass *gst_base_src_class;
-    GstOmxBaseSrcClass *omx_base_class;
+    GstLegacyOmxBaseSrcClass *omx_base_class;
 
     gobject_class = G_OBJECT_CLASS (g_class);
     gst_base_src_class = GST_BASE_SRC_CLASS (g_class);
@@ -398,7 +398,7 @@ void check_settings (GOmxPort *port, GstPad *pad)
 static GstBuffer *
 buffer_alloc (GOmxPort *port, gint len)
 {
-    GstOmxBaseSrc  *self = port->core->object;
+    GstLegacyOmxBaseSrc  *self = port->core->object;
     GstBaseSrc *gst_base = GST_BASE_SRC (self);
     GstBuffer *buf;
     GstFlowReturn ret;
@@ -419,8 +419,8 @@ static void
 type_instance_init (GTypeInstance *instance,
                     gpointer g_class)
 {
-    GstOmxBaseSrc *self;
-    GstOmxBaseSrcClass *klass;
+    GstLegacyOmxBaseSrc *self;
+    GstLegacyOmxBaseSrcClass *klass;
 
     self = GST_OMX_BASE_SRC (instance);
     klass = GST_OMX_BASE_SRC_CLASS (g_class);

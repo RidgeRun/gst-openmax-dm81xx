@@ -29,17 +29,17 @@
 
 G_BEGIN_DECLS
 
-#define GST_OMX_CAMERA(obj) (GstOmxCamera *) (obj)
+#define GST_OMX_CAMERA(obj) (GstLegacyOmxCamera *) (obj)
 #define GST_OMX_CAMERA_TYPE (gst_omx_camera_get_type ())
 
-typedef struct GstOmxCamera GstOmxCamera;
-typedef struct GstOmxCameraClass GstOmxCameraClass;
+typedef struct GstLegacyOmxCamera GstLegacyOmxCamera;
+typedef struct GstLegacyOmxCameraClass GstLegacyOmxCameraClass;
 
 #include "gstomx_base_src.h"
 
-struct GstOmxCamera
+struct GstLegacyOmxCamera
 {
-    GstOmxBaseSrc omx_base;
+    GstLegacyOmxBaseSrc omx_base;
 	/*TVP*/
 	GOmxCore *tvp;
 
@@ -53,13 +53,11 @@ struct GstOmxCamera
 	gint cap_mode;
 	gint input_format;
 	gint scan_type;
-	gint override_colorspace;
-	gint vif_mode;
 };
 
-struct GstOmxCameraClass
+struct GstLegacyOmxCameraClass
 {
-    GstOmxBaseSrcClass parent_class;
+    GstLegacyOmxBaseSrcClass parent_class;
 };
 
 GType gst_omx_camera_get_type (void);

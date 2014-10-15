@@ -36,14 +36,14 @@ typedef struct GstOmxFilereaderSrcClass GstOmxFilereaderSrcClass;
 
 struct GstOmxFilereaderSrc
 {
-    GstOmxBaseSrc omx_base;
+    GstLegacyOmxBaseSrc omx_base;
 
     char *file_name; /**< The input file name. */
 };
 
 struct GstOmxFilereaderSrcClass
 {
-    GstOmxBaseSrcClass parent_class;
+    GstLegacyOmxBaseSrcClass parent_class;
 };
 
 GType gst_omx_filereadersrc_get_type (void);
