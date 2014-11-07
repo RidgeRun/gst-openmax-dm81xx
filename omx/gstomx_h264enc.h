@@ -26,15 +26,15 @@
 
 G_BEGIN_DECLS
 
-#define GST_OMX_H264ENC(obj) (GstOmxH264Enc *) (obj)
+#define GST_OMX_H264ENC(obj) (GstLegacyOmxH264Enc *) (obj)
 #define GST_OMX_H264ENC_TYPE (gst_omx_h264enc_get_type ())
 
-typedef struct GstOmxH264Enc GstOmxH264Enc;
-typedef struct GstOmxH264EncClass GstOmxH264EncClass;
+typedef struct GstLegacyOmxH264Enc GstLegacyOmxH264Enc;
+typedef struct GstLegacyOmxH264EncClass GstLegacyOmxH264EncClass;
 
 #include "gstomx_base_videoenc.h"
 
-struct GstOmxH264Enc
+struct GstLegacyOmxH264Enc
 {
     GstOmxBaseVideoEnc omx_base;
     gboolean bytestream;
@@ -48,7 +48,7 @@ struct GstOmxH264Enc
 	gint cont;
 };
 
-struct GstOmxH264EncClass
+struct GstLegacyOmxH264EncClass
 {
     GstOmxBaseVideoEncClass parent_class;
 };

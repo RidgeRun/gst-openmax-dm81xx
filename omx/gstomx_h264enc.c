@@ -29,7 +29,7 @@
 
 #include <string.h> /* for memset */
 
-GSTOMX_BOILERPLATE (GstOmxH264Enc, gst_omx_h264enc, GstOmxBaseVideoEnc, GST_OMX_BASE_VIDEOENC_TYPE);
+GSTOMX_BOILERPLATE (GstLegacyOmxH264Enc, gst_omx_h264enc, GstOmxBaseVideoEnc, GST_OMX_BASE_VIDEOENC_TYPE);
 
 enum
 {
@@ -211,7 +211,7 @@ set_property (GObject *obj,
               GParamSpec *pspec)
 {
     GstOmxBaseFilter *omx_base;
-    GstOmxH264Enc *self;
+    GstLegacyOmxH264Enc *self;
 
     omx_base = GST_OMX_BASE_FILTER (obj);
     self = GST_OMX_H264ENC (obj);
@@ -370,7 +370,7 @@ get_property (GObject *obj,
               GValue *value,
               GParamSpec *pspec)
 {
-    GstOmxH264Enc *self;
+    GstLegacyOmxH264Enc *self;
     GstOmxBaseFilter *omx_base;
 
     omx_base = GST_OMX_BASE_FILTER (obj);
@@ -567,7 +567,7 @@ type_class_init (gpointer g_class,
 static void
 omx_h264_push_cb (GstOmxBaseFilter *omx_base, GstBuffer *buf)
 {
-    GstOmxH264Enc *self;
+    GstLegacyOmxH264Enc *self;
     self = GST_OMX_H264ENC (omx_base);
 
     /* Currently we use this logic to handle IDR period since the latest
@@ -611,7 +611,7 @@ omx_setup (GstOmxBaseFilter *omx_base)
 {
     GstOmxBaseVideoEnc *self;
     GOmxCore *gomx;
-    GstOmxH264Enc *h264enc;
+    GstLegacyOmxH264Enc *h264enc;
 
     h264enc = GST_OMX_H264ENC (omx_base);
     self = GST_OMX_BASE_VIDEOENC (omx_base);
@@ -750,7 +750,7 @@ type_instance_init (GTypeInstance *instance,
     GstOmxBaseFilter *omx_base_filter;
     GstOmxBaseVideoEnc *omx_base;
     GstOmxBaseFilterClass *bclass;
-    GstOmxH264Enc *self;
+    GstLegacyOmxH264Enc *self;
 
     omx_base_filter = GST_OMX_BASE_FILTER (instance);
     omx_base = GST_OMX_BASE_VIDEOENC (instance);
