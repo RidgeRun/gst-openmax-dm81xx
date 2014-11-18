@@ -169,8 +169,11 @@ src_setcaps (GstPad * pad, GstCaps * caps)
 
     param.nBufferSize = gst_video_format_get_size_strided (format,
         width, height, rowstride);
-    if (self->scan_type == OMX_VIDEO_CaptureScanTypeInterlaced)
+    if (self->scan_type == OMX_VIDEO_CaptureScanTypeInterlaced) {
+	  if (height == 480)
+			height = 484;
       height = height / 2;
+    }
     /* special hack to work around OMX camera bug:
      */
     if (param.format.video.eColorFormat !=
