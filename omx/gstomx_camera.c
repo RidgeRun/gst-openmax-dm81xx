@@ -110,6 +110,7 @@ enum
 {
   ARG_0,
   ARG_INPUT_INTERFACE,
+  ARG_FIELD_MERGED,
   ARG_CAP_MODE,
   ARG_SCAN_TYPE,
   ARG_SKIP_FRAMES,
@@ -172,7 +173,8 @@ src_setcaps (GstPad * pad, GstCaps * caps)
     if (self->scan_type == OMX_VIDEO_CaptureScanTypeInterlaced) {
 	  if (height == 480)
 			height = 484;
-      height = height / 2;
+	  if (!self->fieldMerged)
+			height = height / 2;
     }
     /* special hack to work around OMX camera bug:
      */
@@ -243,6 +245,10 @@ printf("VIF MODE: %s\n", VIF_NAMES(sHwPortParam.eVifMode));
     sHwPortParam.nMaxWidth = width;
     sHwPortParam.nMaxChnlsPerHwPort = 1;
     sHwPortParam.eScanType = self->scan_type;
+    if (self->scan_type == OMX_VIDEO_CaptureScanTypeInterlaced) {
+		if (self->fieldMerged)
+			sHwPortParam.bFieldMerged = 1;
+	}
 printf("INTERLACE MODE: %s\n", TYPE_NAMES(sHwPortParam.eScanType));
 
     structure = gst_caps_get_structure (caps, 0);
@@ -388,6 +394,21 @@ set_property (GObject * obj,
       }
       break;
     }
+    case ARG_FIELD_MERGED:
+    {
+	  str_value = g_value_dup_string (value);
+	  if (!strcmp (str_value, "true")){
+		self->fieldMerged = 1;
+	  }
+	  else if (!strcmp (str_value, "false")){
+		self->fieldMerged = 0;
+	  }
+	  else {
+		GST_WARNING_OBJECT (omx_base, "%s unsupported", str_value);
+        g_return_if_fail (0);
+	  }
+	  break;
+    }
     case ARG_CAP_MODE:
     {
       str_value = g_value_dup_string (value);
@@ -504,6 +525,14 @@ get_property (GObject * obj, guint prop_id, GValue * value, GParamSpec * pspec)
         g_value_set_string (value, "VIP1_PORTA");
       break;
     }
+    case ARG_FIELD_MERGED:
+    {
+	  if (self->fieldMerged == 1)
+		g_value_set_string (value, "true");
+	  else
+		g_value_set_string (value, "false");
+	  break;
+  }
     case ARG_CAP_MODE:
     {
       if (self->cap_mode == OMX_VIDEO_CaptureModeMC_LINE_MUX)
@@ -650,6 +679,9 @@ type_class_init (gpointer g_class, gpointer class_data)
           "Set to true to disable colorspace conversion in the camera"
           "\n\t\t\t true "
 		  "\n\t\t\t false ", "false", G_PARAM_READWRITE));
+  g_object_class_install_property (gobject_class, ARG_FIELD_MERGED,
+      g_param_spec_string ("field-merged", "Field merged",
+          "Field Merged", "false", G_PARAM_READWRITE));
 
 }
 
@@ -683,6 +715,7 @@ type_instance_init (GTypeInstance * instance, gpointer g_class)
   self->scan_type = OMX_VIDEO_CaptureScanTypeProgressive;
   self->vif_mode = OMX_VIDEO_CaptureVifMode_08BIT;
   self->override_colorspace = FALSE;
+  self->fieldMerged = 0;
 
   /* disable all ports to begin with: */
   g_omx_port_disable (self->port);

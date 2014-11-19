@@ -54,6 +54,7 @@ struct GstOmxCamera
     gint alreadystarted;
 
 	gint input_interface;
+	gint fieldMerged;
 	gint cap_mode;
 	gint input_format;
 	gint scan_type;
