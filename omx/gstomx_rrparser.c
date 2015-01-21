@@ -58,7 +58,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_rrparser_debug);
 #define NAL_LENGTH 4
 
 
-GST_BOILERPLATE (GstRRParser, gst_rrparser, GstElement,
+GST_BOILERPLATE (GstLegacyRRParser, gst_rrparser, GstElement,
     GST_TYPE_ELEMENT);
 
 /* Properties */
@@ -120,7 +120,7 @@ gst_rrparser_base_init (gpointer gclass)
 }
 
 static void
-gst_rrparser_class_init (GstRRParserClass * klass)
+gst_rrparser_class_init (GstLegacyRRParserClass * klass)
 {
   GObjectClass *gobject_class;
   GstElementClass *gstelement_class;
@@ -138,7 +138,7 @@ gst_rrparser_class_init (GstRRParserClass * klass)
 
 static gboolean gst_rrparser_sink_event(GstPad *pad, GstEvent *event)
 {
-    GstRRParser * rrparser =(GstRRParser *) gst_pad_get_parent(pad);
+    GstLegacyRRParser * rrparser =(GstLegacyRRParser *) gst_pad_get_parent(pad);
 	gboolean ret = FALSE;
 
     GST_DEBUG("pad \"%s\" received:  %s\n", GST_PAD_NAME(pad),
@@ -155,8 +155,8 @@ static gboolean gst_rrparser_sink_event(GstPad *pad, GstEvent *event)
 }
 
 static void
-gst_rrparser_init (GstRRParser * rrparser,
-    GstRRParserClass * gclass)
+gst_rrparser_init (GstLegacyRRParser * rrparser,
+    GstLegacyRRParserClass * gclass)
 {
 
   rrparser->set_codec_data = FALSE;
@@ -184,7 +184,7 @@ gst_rrparser_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
 
-  GstRRParser *rrparser = (GstRRParser *)object;
+  GstLegacyRRParser *rrparser = (GstLegacyRRParser *)object;
 
   switch (prop_id) {
     case SINGLE_NALU:
@@ -200,7 +200,7 @@ gst_rrparser_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec)
 {
 
-  GstRRParser *rrparser = (GstRRParser *)object;
+  GstLegacyRRParser *rrparser = (GstLegacyRRParser *)object;
 
   switch (prop_id) {
 	case SINGLE_NALU:
@@ -212,7 +212,7 @@ gst_rrparser_get_property (GObject * object, guint prop_id,
 }
 
 GstCaps*
-gst_rrparser_fixate_src_caps(GstRRParser *rrparser, GstCaps *filter_caps){
+gst_rrparser_fixate_src_caps(GstLegacyRRParser *rrparser, GstCaps *filter_caps){
 
   GstCaps *caps, *othercaps;
 
@@ -283,7 +283,7 @@ gst_rrparser_set_caps (GstPad * pad, GstCaps * caps)
   const gchar *stream_format;
   GstCaps *src_caps;
   GstStructure *structure = gst_caps_get_structure (caps, 0);
-  GstRRParser *rrparser = (GstRRParser *)gst_pad_get_parent(pad);
+  GstLegacyRRParser *rrparser = (GstLegacyRRParser *)gst_pad_get_parent(pad);
 
   mime = gst_structure_get_name (structure);
   stream_format = gst_structure_get_string (structure, "stream-format");
@@ -383,7 +383,7 @@ gst_rrparser_fetch_nal(GstBuffer *buffer, gint type)
 
 /* This function creates the buffer with the SPS and PPS information */
 GstBuffer*
-gst_rrparser_generate_codec_data(GstRRParser *rrparser, GstBuffer *buffer) {
+gst_rrparser_generate_codec_data(GstLegacyRRParser *rrparser, GstBuffer *buffer) {
 
 	GstBuffer *avcc = NULL;
     guchar *avcc_data = NULL;
@@ -460,7 +460,7 @@ gst_rrparser_generate_codec_data(GstRRParser *rrparser, GstBuffer *buffer) {
 
 /* This function sets the codec data (SPS and PPS) in the src_pad caps */
 gboolean
-gst_rrparser_set_codec_data(GstRRParser *rrparser, GstBuffer *buf){
+gst_rrparser_set_codec_data(GstLegacyRRParser *rrparser, GstBuffer *buf){
 
   GstBuffer *codec_data;
   GstCaps *src_caps;
@@ -486,7 +486,7 @@ gst_rrparser_set_codec_data(GstRRParser *rrparser, GstBuffer *buf){
 
 /* This function does the real work, converts from bystream to NAL stream */
 GstBuffer*
-gst_rrparser_to_packetized(GstRRParser *rrparser, GstBuffer *out_buffer) {
+gst_rrparser_to_packetized(GstLegacyRRParser *rrparser, GstBuffer *out_buffer) {
 
     GST_DEBUG("Entry gst_rrparser_to_packetized");
 
@@ -579,7 +579,7 @@ gst_rrparser_to_packetized(GstRRParser *rrparser, GstBuffer *out_buffer) {
 static GstFlowReturn
 gst_rrparser_chain (GstPad *pad, GstBuffer *buf)
 {
-  GstRRParser *rrparser = GST_RRPARSER (GST_OBJECT_PARENT (pad));
+  GstLegacyRRParser *rrparser = GST_RRPARSER (GST_OBJECT_PARENT (pad));
   GstFlowReturn ret;
   GST_DEBUG("Entry gst_rrparser_chain");
 

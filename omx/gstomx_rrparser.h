@@ -56,18 +56,18 @@ G_BEGIN_DECLS
 #define GST_TYPE_RRPARSER \
   (gst_rrparser_get_type())
 #define GST_RRPARSER(obj) \
-  (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_RRPARSER,GstRRParser))
+  (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_RRPARSER,GstLegacyRRParser))
 #define GST_RRPARSER_CLASS(klass) \
-  (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_RRPARSER,GstRRParserClass))
+  (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_RRPARSER,GstLegacyRRParserClass))
 #define GST_IS_RRPARSER(obj) \
   (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_TYPE_RRPARSER))
 #define GST_IS_RRPARSER_CLASS(klass) \
   (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_RRPARSER))
 
-typedef struct _GstRRParser      GstRRParser;
-typedef struct _GstRRParserClass GstRRParserClass;
+typedef struct _GstLegacyRRParser      GstLegacyRRParser;
+typedef struct _GstLegacyRRParserClass GstLegacyRRParserClass;
 
-struct _GstRRParser
+struct _GstLegacyRRParser
 {
   GstElement element;
 
@@ -81,7 +81,7 @@ struct _GstRRParser
 
 };
 
-struct _GstRRParserClass
+struct _GstLegacyRRParserClass
 {
   GstElementClass parent_class;
 };
