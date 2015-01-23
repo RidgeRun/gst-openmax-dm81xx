@@ -153,9 +153,8 @@ sink_setcaps (GstPad *pad,
                             GST_TIME_ARGS (omx_base->duration));
     }
 
-    if (gst_structure_get_boolean (gst_caps_get_structure (caps, 0), "interlaced", &self->interlaced))
-		self->interlaced = TRUE;
-    
+    gst_structure_get_boolean (gst_caps_get_structure (caps, 0), "interlaced", &self->interlaced);
+
     if (gst_video_format_parse_caps_strided (caps,
             &format, &width, &height, &rowstride))
     {
@@ -336,4 +335,5 @@ type_instance_init (GTypeInstance *instance,
     gst_pad_set_setcaps_function (omx_base->sinkpad, sink_setcaps);
 
     self->bitrate = DEFAULT_BITRATE;
+    self->interlaced = FALSE;
 }
