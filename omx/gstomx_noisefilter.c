@@ -22,7 +22,7 @@
 #include "gstomx_noisefilter.h"
 #include "gstomx.h"
 
-GSTOMX_BOILERPLATE (GstOmxNoiseFilter, gst_omx_noisefilter, GstOmxBaseVfpc, GST_OMX_BASE_VFPC_TYPE);
+GSTOMX_BOILERPLATE (GstLegacyOmxNoiseFilter, gst_omx_noisefilter, GstOmxBaseVfpc, GST_OMX_BASE_VFPC_TYPE);
 
 static GstStaticPadTemplate sink_template =
         GST_STATIC_PAD_TEMPLATE ("sink",

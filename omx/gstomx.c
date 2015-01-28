@@ -126,7 +126,7 @@ static TableItem element_table[] =
     { "legacy_omx_scaler",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.INDTXSCWB",     NULL,                   GST_RANK_PRIMARY,      gst_omx_scaler_get_type },
     { "legacy_omx_mdeiscaler",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.DEIMDUALOUT",     NULL,                   GST_RANK_PRIMARY,      gst_omx_mdeiscaler_get_type },
     { "legacy_omx_hdeiscaler",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.DEIHDUALOUT",     NULL,                   GST_RANK_PRIMARY,      gst_omx_hdeiscaler_get_type },
-    { "omx_noisefilter",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.NF",     "",                   GST_RANK_PRIMARY,      gst_omx_noisefilter_get_type },
+    { "legacy_omx_noisefilter",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.NF",     "",                   GST_RANK_PRIMARY,      gst_omx_noisefilter_get_type },
     { "omx_ctrl",         "libOMX_Core.so",   "OMX.TI.VPSSM3.CTRL.DC",     "",                   GST_RANK_NONE,      gst_omx_base_ctrl_get_type },
     { "omx_tvp",          "libOMX_Core.so",   "OMX.TI.VPSSM3.CTRL.TVP",     "",                  GST_RANK_PRIMARY,      gst_omx_tvp_get_type },
     { "legacy_omx_camera",         "libOMX_Core.so",           "OMX.TI.VPSSM3.VFCC",  NULL,                   GST_RANK_PRIMARY,   gst_omx_camera_get_type },

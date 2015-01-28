@@ -26,11 +26,11 @@
 
 G_BEGIN_DECLS
 
-#define GST_OMX_NOISEFILTER(obj) (GstOmxNoiseFilter *) (obj)
+#define GST_OMX_NOISEFILTER(obj) (GstLegacyOmxNoiseFilter *) (obj)
 #define GST_OMX_NOISEFILTER_TYPE (gst_omx_noisefilter_get_type ())
 
-typedef struct GstOmxNoiseFilter GstOmxNoiseFilter;
-typedef struct GstOmxNoiseFilterClass GstOmxNoiseFilterClass;
+typedef struct GstOmxNoiseFilter GstLegacyOmxNoiseFilter;
+typedef struct GstOmxNoiseFilterClass GstLegacyOmxNoiseFilterClass;
 
 #include "gstomx_base_vfpc.h"
 
