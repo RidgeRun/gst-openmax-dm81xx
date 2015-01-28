@@ -114,7 +114,7 @@ static TableItem element_table[] =
 //    { "omx_g729enc",        "libomxil-bellagio.so.0",   "OMX.st.audio_encoder.g729",    NULL,                   GST_RANK_NONE,   gst_omx_g729enc_get_type },
 //    { "omx_ilbcdec",        "libomxil-bellagio.so.0",   "OMX.st.audio_decoder.ilbc",    NULL,                   GST_RANK_NONE,   gst_omx_ilbcdec_get_type },
 //    { "omx_ilbcenc",        "libomxil-bellagio.so.0",   "OMX.st.audio_encoder.ilbc",    NULL,                   GST_RANK_NONE,   gst_omx_ilbcenc_get_type },
-    { "omx_jpegenc",        "libOMX_Core.so",           "OMX.TI.DUCATI.VIDENC",   "",                   GST_RANK_PRIMARY,   gst_omx_mjpegenc_get_type },
+    { "legacy_omx_jpegenc",        "libOMX_Core.so",           "OMX.TI.DUCATI.VIDENC",   "",                   GST_RANK_PRIMARY,   gst_omx_mjpegenc_get_type },
 //    { "omx_jpegdec",        "libOMX_Core.so",           "OMX.TI.DUCATI1.IMAGE.JPEGD",   NULL,                   GST_RANK_NONE,   gst_omx_jpegdec_get_type },
 //    { "omx_audiosink",      "libomxil-bellagio.so.0",   "OMX.st.alsa.alsasink",         NULL,                   GST_RANK_NONE,      gst_omx_audiosink_get_type },
     { "omx_videosink",      "libOMX_Core.so",   "OMX.TI.VPSSM3.VFDC",             NULL,              GST_RANK_NONE,      gst_omx_videosink_get_type },
