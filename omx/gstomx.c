@@ -122,7 +122,7 @@ static TableItem element_table[] =
 //    { "omx_volume",         "libomxil-bellagio.so.0",   "OMX.st.volume.component",      NULL,                   GST_RANK_NONE,      gst_omx_volume_get_type },
     { "swcsc",         "libOMX_Core.so",   NULL,      NULL,                   GST_RANK_NONE,      gst_swcsc_get_type },
     { "gstperf",         "libOMX_Core.so",   NULL,      NULL,                   GST_RANK_PRIMARY,      gst_perf_get_type },
-    { "omxbufferalloc",         "libOMX_Core.so",   NULL,      NULL,                   GST_RANK_PRIMARY,      gst_omx_buffer_alloc_get_type },
+    { "legacy_omxbufferalloc",         "libOMX_Core.so",   NULL,      NULL,                   GST_RANK_PRIMARY,      gst_omx_buffer_alloc_get_type },
     { "legacy_omx_scaler",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.INDTXSCWB",     NULL,                   GST_RANK_PRIMARY,      gst_omx_scaler_get_type },
     { "legacy_omx_mdeiscaler",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.DEIMDUALOUT",     NULL,                   GST_RANK_PRIMARY,      gst_omx_mdeiscaler_get_type },
     { "legacy_omx_hdeiscaler",         "libOMX_Core.so",   "OMX.TI.VPSSM3.VFPC.DEIHDUALOUT",     NULL,                   GST_RANK_PRIMARY,      gst_omx_hdeiscaler_get_type },
