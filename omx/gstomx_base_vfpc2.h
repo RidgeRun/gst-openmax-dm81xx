@@ -48,6 +48,7 @@ struct GstOmxBaseVfpc2
     gboolean port_configured;
     GstPadSetCapsFunction sink_setcaps;
     gint in_width, in_height, in_stride;
+    GstVideoFormat in_format;
     gint out_width[NUM_OUTPUTS], out_height[NUM_OUTPUTS], out_stride[NUM_OUTPUTS];
     gint left, top;
     GstOmxBaseFilter2Cb omx_setup;

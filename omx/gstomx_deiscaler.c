@@ -34,7 +34,7 @@ static GstStaticPadTemplate sink_template =
                 GST_PAD_SINK,
                 GST_PAD_ALWAYS,
                 GST_STATIC_CAPS (GST_VIDEO_CAPS_YUV_STRIDED (
-                        "{NV12}", "[ 0, max ]"))
+                        "{NV12,YUY2}", "[ 0, max ]"))
         );
 
 static GstStaticPadTemplate src_template_yuv2 =
@@ -333,8 +333,9 @@ omx_setup (GstOmxBaseFilter2 *omx_base)
     paramPort.format.video.nFrameHeight = self->in_height >> shift;
     paramPort.format.video.nStride = self->in_stride;
     paramPort.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
-    paramPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
-    paramPort.nBufferSize =  self->in_stride * self->in_height * 1.5;
+    paramPort.format.video.eColorFormat = g_omx_gstvformat_to_colorformat (self->in_format);
+    paramPort.nBufferSize =  gst_video_format_get_size_strided (self->in_format,
+        self->in_width, self->in_height, self->in_stride);
     paramPort.nBufferAlignment = 0;
     paramPort.bBuffersContiguous = 0;
     G_OMX_PORT_SET_DEFINITION (omx_base->in_port, &paramPort);

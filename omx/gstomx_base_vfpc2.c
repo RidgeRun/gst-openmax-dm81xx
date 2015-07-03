@@ -96,7 +96,6 @@ sink_setcaps (GstPad *pad,
     GstOmxBaseVfpc2 *self;
     GstOmxBaseFilter2 *omx_base;
     GOmxCore *gomx;
-    GstVideoFormat format;
 
     self = GST_OMX_BASE_VFPC2 (GST_PAD_PARENT (pad));
     omx_base = GST_OMX_BASE_FILTER2 (self);
@@ -113,7 +112,7 @@ sink_setcaps (GstPad *pad,
     g_return_val_if_fail (structure, FALSE);
 
     if (!gst_video_format_parse_caps_strided (caps,
-            &format, &self->in_width, &self->in_height, &self->in_stride))
+            &self->in_format, &self->in_width, &self->in_height, &self->in_stride))
     {
         GST_WARNING_OBJECT (self, "width and/or height is not set in caps");
         return FALSE;
@@ -121,7 +120,7 @@ sink_setcaps (GstPad *pad,
 
     if (!self->in_stride) 
     {
-        self->in_stride = gstomx_calculate_stride (self->in_width, format);
+        self->in_stride = gstomx_calculate_stride (self->in_width, self->in_format);
     }
 
     {
