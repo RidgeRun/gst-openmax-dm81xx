@@ -33,12 +33,14 @@ GST_DEBUG_CATEGORY_STATIC (gst_perf_debug);
 #define DEFAULT_INTERVAL  1
 #define PRINT_ARM_LOAD    TRUE
 #define PRINT_FPS         TRUE
+#define MEASURE_TIME      FALSE
 
 enum
 {
   PROP_0,
   PROP_PRINT_ARM_LOAD,
-  PROP_PRINT_FPS
+  PROP_PRINT_FPS,
+  PROP_MEASURE_TIME
 };
 
 static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE ("sink",
@@ -62,16 +64,87 @@ static GstFlowReturn gst_perf_transform_ip (GstBaseTransform * trans,GstBuffer *
 static gboolean gst_perf_start (GstBaseTransform * trans);
 static gboolean gst_perf_stop (GstBaseTransform * trans);
 static void gst_perf_set_property (GObject * object, guint prop_id, const GValue * value, GParamSpec * pspec);
+static GstStateChangeReturn gst_perf_change_state (GstElement * element,
+    GstStateChange transition);
+
+static gboolean
+gst_perf_handle_time_event (Gstperf * perf)
+{
+	double x_ms , y_ms , diff;
+
+	gettimeofday(&perf->time2,NULL);
+	x_ms = (double)perf->time1.tv_sec*1000000 + (double)perf->time1.tv_usec;
+    y_ms = (double)perf->time2.tv_sec*1000000 + (double)perf->time2.tv_usec;
+
+    diff = (double)y_ms - (double)x_ms;
+
+    diff = (double) diff / 1000000;
+
+    GST_DEBUG_OBJECT (perf, "Total time elapsed : %f s\n" , diff );
+
+    perf->time1 = (struct timeval){0};
+    perf->time2 = (struct timeval){0};
+    return GST_FLOW_OK;
+
+}
+
+static gboolean
+gst_perf_handle_event (GstBaseTransform * trans, GstEvent * event)
+{
+  gboolean res = TRUE;
+  Gstperf *perf = GST_PERF (trans);
+
+
+  switch (GST_EVENT_TYPE (event)) {
+    case GST_EVENT_SEEK:
+		if (perf->measure_time) {
+		  gettimeofday(&perf->time1,NULL);
+		  perf->after_seek=TRUE;
+		  perf->playing=FALSE;
+		  perf->count=0;
+	    }
+		gst_pad_push_event (trans->sinkpad, event);
+      break;
+    case GST_EVENT_CUSTOM_TIME:
+		if (perf->measure_time && perf->after_seek && perf->playing) {
+		  if (perf->count == 1) {
+			  res = gst_perf_handle_time_event (perf);
+			  perf->after_seek=FALSE;
+			  perf->playing= FALSE;
+			  perf->count= perf->count+1;
+		  }
+		  else
+			perf->count= perf->count+1;
+	  }
+      gst_event_unref (event);
+      break;
+    default:
+      gst_pad_push_event (trans->sinkpad, event);
+	  break;
+  }
+
+  return res;
+}
 
 static void
 gst_perf_init (Gstperf * perf, GstperfClass * gclass)
 {
     Gstperf *self = perf;
+    GstBaseTransformClass *trans_class;
+
+    trans_class = (GstBaseTransformClass *) gclass;
 
     gst_base_transform_set_qos_enabled (GST_BASE_TRANSFORM (perf), TRUE);
     self->fps_update_interval = GST_SECOND * DEFAULT_INTERVAL;
     self->print_arm_load = PRINT_ARM_LOAD;
     self->print_fps = PRINT_FPS;
+    self->measure_time = MEASURE_TIME;
+    self->after_seek=FALSE;
+	self->playing=FALSE;
+	self->count=0;
+	self->time1 = (struct timeval){0};
+	self->time2 = (struct timeval){0};
+	trans_class->src_event = gst_perf_handle_event;
 }
 
 static gboolean
@@ -165,6 +238,10 @@ gst_perf_class_init (GstperfClass * klass)
 {
     GObjectClass *gobject_class;
     GstBaseTransformClass *trans_class;
+    GstElementClass *element_class;
+
+    element_class = GST_ELEMENT_CLASS (klass);
+	element_class->change_state = gst_perf_change_state;
 
     gobject_class = (GObjectClass *) klass;
 
@@ -188,6 +265,10 @@ gst_perf_class_init (GstperfClass * klass)
     g_object_class_install_property (gobject_class, PROP_PRINT_FPS,
       g_param_spec_boolean ("print-fps", "print-fps",
           "Print framerate", PRINT_FPS, G_PARAM_WRITABLE));
+
+    g_object_class_install_property (gobject_class, PROP_MEASURE_TIME,
+      g_param_spec_boolean ("measure-time", "measure-time",
+          "Measure time", MEASURE_TIME, G_PARAM_WRITABLE));
 }
 
 static void
@@ -203,6 +284,10 @@ gst_perf_set_property (GObject * object, guint prop_id,
 
         case PROP_PRINT_FPS:
             perf->print_fps = g_value_get_boolean(value);
+            break;
+
+        case PROP_MEASURE_TIME:
+            perf->measure_time = g_value_get_boolean(value);
             break;
 
         default:
@@ -318,3 +403,23 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     return GST_FLOW_OK;;
 }
 
+static GstStateChangeReturn
+gst_perf_change_state (GstElement * element, GstStateChange transition)
+{
+  Gstperf *perf;
+  GstStateChangeReturn ret;
+
+  perf = GST_PERF (element);
+  ret = GST_ELEMENT_CLASS (parent_class)->change_state (element, transition);
+
+  switch (transition) {
+    case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
+      if (perf->measure_time)
+		perf->playing = TRUE;
+      break;
+    default:
+      break;
+  }
+
+  return ret;
+}
