@@ -60,18 +60,11 @@ struct _Gstperf
   GstClockTime last_ts;
   GstClockTime interval_ts;
 
-  gboolean print_fps, print_arm_load, fps_update_interval, measure_time;
+  gboolean print_fps, print_arm_load, fps_update_interval;
   unsigned long int  total;
   unsigned long int  prevTotal;
   unsigned long int userTime;
   unsigned long int  prevuserTime;
-
-  gboolean after_seek;
-  gboolean playing;
-  guint count;
-
-  struct timeval time1;
-  struct timeval time2;
 };
 
 /* _GstperfClass object */
